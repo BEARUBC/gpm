@@ -8,3 +8,11 @@ edition = "2021"
 [dependencies]
 tokio = { version = "1.38.0", features = ["full"] }
 anyhow = "1.0"
+bytes = "1"
+# raestro depends on rppal -> won't compile on mac
+# raestro = "0.5.0"
+prost = "0.12"
+prost-types = "0.12"
+
+[build-dependencies]
+prost-build = { version = "0.12" }

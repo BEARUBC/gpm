@@ -4,18 +4,20 @@ mod taskdefs;
 
 use anyhow::Result;
 use tokio::{
-    io::{
-        AsyncBufReadExt, 
-        AsyncReadExt, 
-        AsyncWriteExt, 
-        BufReader
-    }, 
+    io::AsyncReadExt, 
     net::{
         TcpListener, 
         TcpStream
     }
 };
 use taskdefs::*;
+use prost::Message;
+use std::io::Cursor;
+use bytes::BytesMut;
+
+pub mod sgcp {
+    include!(concat!(env!("OUT_DIR"), "/sgcp.rs"));
+}
 
 #[tokio::main]
 async fn main() {
@@ -28,40 +30,37 @@ async fn main() {
     }
 }
 
-// Reads request contents. Currently using the HTTP protocol as a PoC, we should 
-// design a custom communication format better suited to our needs.
+// Parses protobuf struct from stream and handles the request.
 async fn handle_connection(mut stream: TcpStream) -> Result<()> {
-    let buffer = read_request_bytes(&mut stream).await.unwrap();
-    match String::from_utf8(buffer) {
-        Ok(string) => {
-            println!("Converted string: {}", string);
-            let task_type = string.split("=").nth(1).unwrap();
-            handle_task(task_type).await.unwrap();
+    let mut buf = BytesMut::with_capacity(1024);
+    match stream.read_buf(&mut buf).await {
+        Ok(0) => println!("Could not read incoming request, connection closed."),
+        Ok(_) => {
+            let req = deserialize_sgcp_request(&mut buf).unwrap();
+            handle_task(req).unwrap();
         }
         Err(e) => {
-            println!("Failed to convert byte buffer to string: {}", e);
+            println!("Failed to read from socket; err = {:?}", e);
         }
     }
-    let response = "HTTP/1.1 200 OK\r\n\r\n";
-    stream.write_all(response.as_bytes()).await.unwrap();
     Ok(())
 }
 
-async fn handle_task(task_type: &str) -> Result<()> {
-    match task_type {
-        "BMS" => {
+fn handle_task(request: sgcp::CommandRequest) -> Result<()> {
+    match request.component() {
+        sgcp::Component::Bms => {
             println!("Dispatching BMS task");
             tokio::spawn(bms::check_battery_usage());
         }
-        "EMG" => {
+        sgcp::Component::Emg => {
             println!("Dispatching EMG task");
             tokio::spawn(emg::read_edc());
         }
-        "SERVO" => {
+        sgcp::Component::Servo => {
             println!("Dispatching SERVO task");
-            tokio::spawn(servo::send_command());
+            // tokio::spawn(servo::handle_servo_task(request.task_code));
         }
-        "TELEMETRY" => {
+        sgcp::Component::Telemetry => {
             println!("Dispatching TELEMETRY task");
             tokio::spawn(telemetry::check_health());
         }
@@ -72,30 +71,6 @@ async fn handle_task(task_type: &str) -> Result<()> {
     Ok(())
 }
 
-// A helper function to read form values from a HTTP post request. Again, HTTP is just
-// used as a proof of concept, we should refactor communications with a custom protocol.
-async fn read_request_bytes(stream: &mut TcpStream) -> Result<Vec<u8>> {
-    let mut reader = BufReader::new(stream);
-    let mut name = String::new();
-    loop {
-        let r = reader.read_line(&mut name).await.unwrap();
-        if r < 3 {
-            break;
-        }
-    }
-    let mut size = 0;
-    let linesplit = name.split("\n");
-    for l in linesplit {
-        if l.starts_with("Content-Length") {
-            let sizeplit = l.split(":");
-            for s in sizeplit {
-                if !(s.starts_with("Content-Length")) {
-                    size = s.trim().parse::<usize>().unwrap();
-                }
-            }
-        }
-    }
-    let mut buffer = vec![0; size];
-    reader.read_exact(&mut buffer).await.unwrap();
-    Ok(buffer)
+pub fn deserialize_sgcp_request(buf: &mut BytesMut) -> Result<sgcp::CommandRequest, prost::DecodeError> {
+    sgcp::CommandRequest::decode(&mut Cursor::new(buf))
 }

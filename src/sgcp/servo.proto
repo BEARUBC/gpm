@@ -1,0 +1,12 @@
+syntax = "proto3";
+
+package sgcp.servo
+
+enum Tasks {
+    UNKNOWN_TASK     = 0;
+    GET_POSITION     = 1;
+    SET_ACCELERATION = 2;
+    SET_SPEED        = 3;
+    SET_TARGET       = 4;
+    STOP_SCRIPT      = 5;
+}
