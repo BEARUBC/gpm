@@ -24,7 +24,9 @@ async fn main() {
     let listener = TcpListener::bind("127.0.0.1:4760").await.unwrap();
     loop {
         let (stream, _) = listener.accept().await.unwrap();
-        handle_connection(stream).await.unwrap();
+        tokio::spawn(async move {
+            handle_connection(stream).await.unwrap();
+        });
     }
 }
 
@@ -32,7 +34,9 @@ async fn main() {
 async fn handle_connection(mut stream: TcpStream) -> Result<()> {
     let mut buf = BytesMut::with_capacity(1024);
     match stream.read_buf(&mut buf).await {
-        Ok(0) => println!("Could not read incoming request, connection closed."),
+        Ok(0) => {
+            println!("Could not read incoming request, connection closed.");
+        },
         Ok(_) => {
             let req = deserialize_sgcp_request(&mut buf).unwrap();
             handle_task(req).unwrap();
@@ -44,6 +48,7 @@ async fn handle_connection(mut stream: TcpStream) -> Result<()> {
     Ok(())
 }
 
+// @todo: look into creating a macro to reduce duplication. also because macros are cool.
 fn handle_task(request: sgcp::CommandRequest) -> Result<()> {
     match request.component() {
         sgcp::Component::Bms => {
@@ -60,7 +65,7 @@ fn handle_task(request: sgcp::CommandRequest) -> Result<()> {
         }
         sgcp::Component::Telemetry => {
             println!("Dispatching TELEMETRY task");
-            tokio::spawn(telemetry::check_health());
+            tokio::spawn(telemetry::handle_telemetry_task(request.task_code));
         }
         _ => {
             println!("Unmatched task, ignoring...")
