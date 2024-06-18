@@ -3,6 +3,5 @@ use anyhow::Result;
 
 // Stub
 pub async fn check_battery_usage() -> Result<()> {
-	println!("bms::check_battery_usage called");
 	Ok(())
 }
