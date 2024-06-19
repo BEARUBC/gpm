@@ -1,7 +1,8 @@
 ## Grasp Primary Module (GPM)
 This repository contains the source code for the primary software module of the Grasp project. It is still in its early stages. The purpose of the GPM is to manage all systems of the arm. These include BMS, EMG processing, servo motor controls and overall system health monitoring / telemetry. It is designed to be run on a Pi Zero. Given the fact that the Pi Zero has a single-core CPU, we did not want to introduce the overhead of OS-level threads, thus the GPM is essentially a single async event loop. We use the Tokio async-runtime and Tokio “Tasks” to achieve this design.
 
-<img width="707" alt="image" src="https://github.com/BEARUBC/gpm/assets/83952444/34cc34ef-b0c5-4f95-836a-b956bfd55171">
+<img width="705" alt="image" src="https://github.com/BEARUBC/gpm/assets/83952444/93593ce3-ae5c-4ff7-b5b1-715653146154">
+
 
 
 
