@@ -1,6 +1,6 @@
 // This file contains the main TCPListener loop and is responsible for
 // dispatching the required task.
-mod taskdefs;
+mod task_definitions;
 mod telemetry;
 
 use anyhow::Result;
@@ -26,13 +26,13 @@ extern crate pretty_env_logger;
 #[tokio::main]
 async fn main() {
     pretty_env_logger::init();
-    info!(r"  ________                                
+    println!(r"  ________                                
  /  _____/_______ _____     ____________  
 /   \  ___\_  __ \\__  \   /  ___/\____ \ 
-\    \_\  \|  | \/ / __ \_ \___ \ |  |_> >
- \______  /|__|   (____  //____  >|   __/ 
+\    \_\  \|  | \/ / __ \_ \___ \ |  |_| |
+ \______  /|__|   (____  //____  ||   __/ 
         \/             \/      \/ |__|    ");
-
+    println!("Developed at UBC Bionics | Version 1.0.0");
     let _ = telemetry::http::start_server().await;
     let listener = TcpListener::bind("127.0.0.1:4760").await.unwrap();
     loop {

@@ -2,6 +2,6 @@
 use anyhow::Result;
 
 // Stub
-pub async fn check_battery_usage() -> Result<()> {
+pub fn check_battery_usage() -> Result<()> {
 	Ok(())
 }

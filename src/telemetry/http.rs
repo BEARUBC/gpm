@@ -2,6 +2,7 @@
 // and health check endpoints. These are then scraped by the 
 // Prometheus server running remotely. 
 use psutil::cpu::CpuPercentCollector;
+use psutil::memory::virtual_memory;
 use tokio::time;
 use std::time::Duration;
 use chrono::Utc;
@@ -10,6 +11,7 @@ use anyhow::Result;
 
 use std::convert::Infallible;
 use std::net::SocketAddr;
+use std::collections::HashMap;
 
 use http_body_util::Full;
 use hyper::body::Bytes;
@@ -19,11 +21,7 @@ use hyper::{Request, Response};
 use hyper_util::rt::TokioIo;
 use tokio::net::TcpListener;
 
-use super::DataPoint;
-
-pub mod sgcp {
-    include!(concat!(env!("OUT_DIR"), "/sgcp.telemetry.rs"));
-}
+use super::MetricDataPoint;
 
 pub async fn start_server() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let addr = SocketAddr::from(([127, 0, 0, 1], 9999));
@@ -42,42 +40,40 @@ pub async fn start_server() -> Result<(), Box<dyn std::error::Error + Send + Syn
     }
 }
 
-pub async fn handle_telemetry_task(task_code: i32) -> Result<()> {
-    match sgcp::Tasks::try_from(task_code).unwrap() {
-        sgcp::Tasks::CheckCpuUsageAndMemory => {
-            info!("Checking cpu usage and memory");
-            check_cpu_usage_and_memory().await.unwrap();
-        }
-        _ => println!("Unmatched task, ignoring...")
-    }
-    Ok(())    
-}
-
-pub async fn check_cpu_usage_and_memory() -> Result<Vec<DataPoint>> {
-    check_cpu_usage().await
-    // check_memory_usage().await.unwrap();
-    // Ok(())
-}
-
-pub async fn check_cpu_usage() -> Result<Vec<DataPoint>> {
-    let mut cpu_collector = CpuPercentCollector::new().unwrap();
-    let mut res: Vec<DataPoint> = Vec::new();
-    info!("Checking CPU usage...");
-    for _ in 0..5 { // fetch CPU usage every second for 5 seconds
-        let cpu_percent = cpu_collector.cpu_percent().unwrap();
-        let data_point = DataPoint {
-            timestamp: Utc::now(),
-            value: cpu_percent
-        };
-        res.push(data_point);
-        info!("Current CPU Usage: {:.2}%", cpu_percent);
+async fn check_cpu_usage_and_memory() -> Result<HashMap<String, Vec<MetricDataPoint>>> {
+    let mut map: HashMap<String, Vec<MetricDataPoint>> = HashMap::new();
+    let mut cpu_usage: Vec<MetricDataPoint> = Vec::new();
+    let mut memory_usage: Vec<MetricDataPoint> = Vec::new();
+    for _ in 0..5 { // collect cpu and memory usage once every second for the next 5 seconds
+        cpu_usage.push(check_cpu_usage().unwrap());
+        memory_usage.push(check_memory_usage().unwrap());
         time::sleep(Duration::from_secs(1)).await;
     }
-    Ok(res)
+    map.insert("cpu_usage".to_string(), cpu_usage);
+    map.insert("memory_usage".to_string(), memory_usage);
+    Ok(map)
 }
 
-pub async fn check_memory_usage() -> Result<()> {
-    Ok(())
+fn check_cpu_usage() -> Result<MetricDataPoint> {
+    let mut cpu_collector = CpuPercentCollector::new().unwrap();
+    let cpu_usage = cpu_collector.cpu_percent().unwrap();
+    let data_point: MetricDataPoint = MetricDataPoint {
+        timestamp: Utc::now(),
+        value: cpu_usage
+    };
+    info!("Current CPU Usage: {:.2}%", cpu_usage);
+    Ok(data_point)
+}
+
+fn check_memory_usage() -> Result<MetricDataPoint> {
+    let memory = virtual_memory().expect("Failed to get virtual memory usage");
+    let memory_usage = memory.percent();
+    let data_point: MetricDataPoint = MetricDataPoint {
+        timestamp: Utc::now(),
+        value: memory_usage
+    };
+    info!("Current Memory Usage: {:.2}%", memory_usage);
+    Ok(data_point)
 }
 
 async fn get_metrics(_: Request<hyper::body::Incoming>) -> Result<Response<Full<Bytes>>, Infallible> {
