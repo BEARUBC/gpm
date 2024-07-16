@@ -5,8 +5,12 @@
 mod managers;
 mod telemetry;
 mod config;
+mod macros;
+
+use log::*;
 
 use anyhow::Result;
+use managers::ManagerChannelData;
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt}, 
     net::{
@@ -16,11 +20,15 @@ use tokio::{
     sync::{mpsc::Sender, oneshot}
 };
 use prost::Message;
-use std::io::Cursor;
+use std::{any::Any, io::Cursor};
 use bytes::BytesMut;
 use std::collections::HashMap;
 
-use crate::managers::ResourceManager;
+use crate::_dispatch_task as dispatch_task;
+
+use crate::managers::{Manager, ResourceManager, Bms, Emg, Maestro};
+
+type ManagerChannelMap = HashMap<String, Sender<ManagerChannelData>>;
 
 // Import protobuf generated code to handle de/serialization
 pub mod sgcp {
@@ -36,56 +44,42 @@ pub mod sgcp {
     }
 }
 
-extern crate pretty_env_logger;
-#[macro_use] extern crate log;
+use sgcp::*;
 
 #[tokio::main]
 async fn main() {
     config::init();
-    let send_channel_map = init_resources().await;
+    let manager_channel_map = init_resource_managers().await;
+    tokio::spawn(telemetry::http::start_server());
     let listener = TcpListener::bind("127.0.0.1:4760").await.unwrap();
+    info!("Listening on port 4760");
     loop {
         // @todo: krarpit need to bound the number of active connections GPM can maintain
         let (stream, _) = listener.accept().await.unwrap();
-        let send_channel_map = send_channel_map.clone();
+        let send_channel_map = manager_channel_map.clone();
         tokio::spawn(async move {
             handle_connection(stream, &send_channel_map).await.unwrap();
         });
     }
 }
 
-async fn init_resources() -> HashMap<String, Sender<(i32, oneshot::Sender<std::string::String>)>> {
-    // let _ = telemetry::http::start_server().await;
+async fn init_resource_managers() -> ManagerChannelMap {
     let mut map = HashMap::new();
-    {
-        let mut bms_manager = managers::bms::BMS::new();
-        bms_manager.init().unwrap();
-        map.insert(sgcp::Component::Bms.as_str_name().to_string(), bms_manager.tx());
-        tokio::spawn(async move {
-            bms_manager.run().await;
-        });
-    }
-    {
-        let mut emg_manager = managers::emg::EMG::new();
-        emg_manager.init().unwrap();
-        map.insert(sgcp::Component::Emg.as_str_name().to_string(), emg_manager.tx());
-        tokio::spawn(async move {
-            emg_manager.run().await;
-        });
-    }
-    {
-        let mut maestro_manager = managers::maestro::Maestro::new();
-        maestro_manager.init().unwrap();
-        map.insert(sgcp::Component::Maestro.as_str_name().to_string(), maestro_manager.tx());
-        tokio::spawn(async move {
-            maestro_manager.run().await;
-        });
-    }
+    init_resource_manager(Manager::BmsManager(Bms::new()), Component::Bms, &mut map).await;
+    init_resource_manager(Manager::EmgManager(Emg::new()), Component::Emg, &mut map).await;
+    init_resource_manager(Manager::MaestroManager(Maestro::new()), Component::Maestro, &mut map).await;
     map
 }
 
+async fn init_resource_manager(mut manager: managers::Manager, component: Component, map: &mut ManagerChannelMap) {
+    info!("Initializing resource_manager_task={:?}", component.as_str_name());
+    manager.init().unwrap();
+    map.insert(component.as_str_name().to_string(), manager.tx());
+    tokio::spawn(async move { manager.run().await; });
+}
+
 // Parses protobuf struct from stream and handles the request.
-async fn handle_connection(mut stream: TcpStream, map: &HashMap<String, Sender<(i32, oneshot::Sender<std::string::String>)>>) -> Result<()> {
+async fn handle_connection(mut stream: TcpStream, map: &ManagerChannelMap) -> Result<()> {
     // @todo: krarpit implement framing abstraction for tcp stream
     let mut buf = BytesMut::with_capacity(1024);
     match stream.read_buf(&mut buf).await {
@@ -94,7 +88,7 @@ async fn handle_connection(mut stream: TcpStream, map: &HashMap<String, Sender<(
         },
         Ok(_) => {
             let req = deserialize_sgcp_request(&mut buf).unwrap();
-            let res = handle_task(req, &map).await.unwrap();
+            let res = dispatch_task(req, &map).await.unwrap();
             stream.write(res.as_bytes()).await.unwrap();
         }
         Err(e) => {
@@ -104,53 +98,10 @@ async fn handle_connection(mut stream: TcpStream, map: &HashMap<String, Sender<(
     Ok(())
 }
 
-// @todo krarpit look into creating a macro to reduce duplication
-async fn handle_task(request: sgcp::Request, map: &HashMap<String, Sender<(i32, oneshot::Sender<std::string::String>)>>) -> Result<String> {
-    match request.component() {
-        sgcp::Component::Emg => {
-            info!("Dispatching EMG task with task_code={:?}", request.task_code);
-            match map.get("EMG") {
-                Some(tx) => {
-                    let (resp_tx, resp_rx) = oneshot::channel::<String>();
-                    tx.send((request.task_code, resp_tx)).await.unwrap();
-                    let res = resp_rx.await;
-                    info!("EMG task returned value={:?}", res);
-                    return Ok(res?);
-                },
-                None => error!("EMG resource manager not initialized")
-            }
-        }
-        sgcp::Component::Maestro => {
-            info!("Dispatching MAESTRO task");
-            match map.get("MAESTRO") {
-                Some(tx) => {
-                    let (resp_tx, resp_rx) = oneshot::channel::<String>();
-                    tx.send((request.task_code, resp_tx)).await.unwrap();
-                    let res = resp_rx.await;
-                    info!("Maestro task returned value={:?}", res);
-                    return Ok(res?);
-                },
-                None => error!("Maestro resource manager not initialized")
-            }
-        }
-        sgcp::Component::Bms => {
-            info!("Dispatching BMS task");
-            match map.get("BMS") {
-                Some(tx) => {
-                    let (resp_tx, resp_rx) = oneshot::channel::<String>();
-                    tx.send((request.task_code, resp_tx)).await.unwrap();
-                    let res = resp_rx.await;
-                    info!("BMS task returned value={:?}", res);
-                    return Ok(res?);
-                },
-                None => error!("BMS resource manager not initialized")
-            }
-        }
-        _ => {
-            info!("Unmatched task, ignoring...");
-        }
-    }
-    Ok("Undefined component".to_string())
+dispatch_task! {
+    Component::Bms => (bms::Task, request::TaskData::BmsData, ManagerChannelData::BmsChannelData),
+    Component::Emg => (emg::Task, request::TaskData::EmgData, ManagerChannelData::EmgChannelData),
+    Component::Maestro => (maestro::Task, request::TaskData::MaestroData, ManagerChannelData::MaestroChannelData)
 }
 
 pub fn deserialize_sgcp_request(buf: &mut BytesMut) -> Result<sgcp::Request, prost::DecodeError> {

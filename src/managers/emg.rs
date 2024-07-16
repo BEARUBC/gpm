@@ -1,30 +1,33 @@
 // All tasks operating on the EMG system live in this file.
 use anyhow::Result;
 use tokio::sync::mpsc::{Sender, Receiver, channel};
+use log::*;
 
-use super::ResourceManager;
+use crate::sgcp::emg::*;
+use super::{ManagerChannelData, ResourceManager, Responder, MAX_MPSC_CHANNEL_BUFFER};
 
-pub struct EMG {
-    pub tx: Sender<(i32, tokio::sync::oneshot::Sender<std::string::String>)>,
-    pub rx: Receiver<(i32, tokio::sync::oneshot::Sender<std::string::String>)>,
+type EmgMessage = (Task, Option<TaskData>);
+pub type ChannelData = (EmgMessage, Responder<std::string::String>);
+
+pub struct Emg {
+    pub tx: Sender<ManagerChannelData>,
+    pub rx: Receiver<ManagerChannelData>,
 }
 
-impl EMG {
+impl Emg {
     pub fn new() -> Self {
-        let (tx, mut rx) = channel(32);
-        EMG { tx, rx }
+        let (tx, mut rx) = channel(MAX_MPSC_CHANNEL_BUFFER);
+        Emg { tx, rx }
     }
 }
 
-impl ResourceManager for EMG {
-    type Message = (i32, tokio::sync::oneshot::Sender<std::string::String>);
-
+impl ResourceManager for Emg {
     fn init(&self) -> Result<()> {
         info!("Successfully initialized");
         Ok(()) // stub
     }
 
-    fn tx(&self) -> Sender<Self::Message> {
+    fn tx(&self) -> Sender<ManagerChannelData> {
         self.tx.clone()
     }
 
@@ -35,9 +38,14 @@ impl ResourceManager for EMG {
     async fn run(&mut self) {
         // stub
         info!("Listening for messages");
-        while let Some(data) = self.rx.recv().await {
-            info!("Recieved task_code={:?}", data.0);
-            data.1.send("Successfully ran task!".to_string());
+        while let Some(data) = self.rx.recv().await { 
+            match data {
+                ManagerChannelData::EmgChannelData(data) => {
+                    info!("Recieved task_code={:?}", data.0);
+                    data.1.send("Successfully ran task!".to_string());
+                },
+                _ => error!("Mismatched message type")
+            }
         }
     }
 }

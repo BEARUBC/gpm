@@ -6,6 +6,7 @@ use psutil::memory::virtual_memory;
 use tokio::time;
 use std::time::Duration;
 use chrono::Utc;
+use log::*;
 
 use anyhow::Result;
 
@@ -26,6 +27,7 @@ use super::MetricDataPoint;
 pub async fn start_server() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let addr = SocketAddr::from(([127, 0, 0, 1], 9999));
     let listener = TcpListener::bind(addr).await.unwrap();
+    info!("Listening on port 9999");
     loop {
         let (stream, _) = listener.accept().await.unwrap();
         let io = TokioIo::new(stream);

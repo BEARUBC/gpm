@@ -16,6 +16,6 @@ fn print_ascii() {
 
 pub fn init() {
     set_var(RUST_LOG_KEY, "trace");
-    pretty_env_logger::init();
+    env_logger::init();
     print_ascii();
 }

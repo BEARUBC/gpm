@@ -1,30 +1,35 @@
+use std::path::Component;
+use log::*;
+
 // All tasks operating on the BMS system live in this file.
 use anyhow::Result;
 use tokio::sync::mpsc::{Sender, Receiver, channel};
 
-use super::ResourceManager;
+use super::{ManagerChannelData, ResourceManager, Responder, MAX_MPSC_CHANNEL_BUFFER};
+use crate::sgcp::bms::*;
 
-pub struct BMS {
-    pub tx: Sender<(i32, tokio::sync::oneshot::Sender<std::string::String>)>,
-    pub rx: Receiver<(i32, tokio::sync::oneshot::Sender<std::string::String>)>,
+type BmsMessage = (Task, Option<TaskData>);
+pub type ChannelData = (BmsMessage, Responder<std::string::String>);
+
+pub struct Bms {
+    pub tx: Sender<ManagerChannelData>,
+    pub rx: Receiver<ManagerChannelData>,
 }
 
-impl BMS {
+impl Bms {
     pub fn new() -> Self {
-        let (tx, mut rx) = channel(32);
-        BMS { tx, rx }
+        let (tx, mut rx) = channel(MAX_MPSC_CHANNEL_BUFFER);
+        Bms { tx, rx }
     }
 }
 
-impl ResourceManager for BMS {
-    type Message = (i32, tokio::sync::oneshot::Sender<std::string::String>);
-
+impl ResourceManager for Bms {
     fn init(&self) -> Result<()> {
         info!("Successfully initialized");
         Ok(()) // stub
     }
 
-    fn tx(&self) -> Sender<Self::Message> {
+    fn tx(&self) -> Sender<ManagerChannelData> {
         self.tx.clone()
     }
 
@@ -35,9 +40,14 @@ impl ResourceManager for BMS {
     async fn run(&mut self) {
         // stub
         info!("Listening for messages");
-        while let Some(data) = self.rx.recv().await {
-            info!("Recieved task_code={:?}", data.0);
-            data.1.send("Successfully ran task!".to_string());
+        while let Some(data) = self.rx.recv().await { 
+            match data {
+                ManagerChannelData::BmsChannelData(data) => {
+                    info!("Recieved task_code={:?}", data.0);
+                    data.1.send("Successfully ran task!".to_string());
+                },
+                _ => error!("Mismatched message type")
+            }
         }
     }
 }
