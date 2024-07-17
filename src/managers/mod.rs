@@ -1,9 +1,9 @@
-use anyhow::Result;
-use tokio::sync::mpsc::Sender;
-
 mod bms;
 mod emg;
 mod maestro;
+
+use anyhow::Result;
+use tokio::sync::mpsc::Sender;
 
 pub use bms::Bms;
 pub use emg::Emg;
@@ -23,13 +23,13 @@ pub trait ResourceManager {
 pub enum Manager {
     BmsManager(Bms),
     EmgManager(Emg),
-    MaestroManager(Maestro)
+    MaestroManager(Maestro),
 }
 
 pub enum ManagerChannelData {
     BmsChannelData(bms::ChannelData),
     EmgChannelData(emg::ChannelData),
-    MaestroChannelData(maestro::ChannelData)
+    MaestroChannelData(maestro::ChannelData),
 }
 
 impl ResourceManager for Manager {
@@ -55,9 +55,9 @@ impl ResourceManager for Manager {
 
     async fn run(&mut self) {
         match self {
-            Manager::BmsManager(bms)=> bms.run().await,
+            Manager::BmsManager(bms) => bms.run().await,
             Manager::EmgManager(emg) => emg.run().await,
-            Manager::MaestroManager(maestro) => maestro.run().await
+            Manager::MaestroManager(maestro) => maestro.run().await,
         }
     }
 }

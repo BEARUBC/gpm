@@ -1,32 +1,30 @@
-#![allow(warnings)] // ONLY FOR CLEANER LOGS DURING DEBUGGING
+#![allow(warnings)]
 
 // This file contains the main TCP connection loop and is responsible for
 // delegating incoming commands to the appropiate resource mamagers.
-mod managers;
-mod telemetry;
 mod config;
 mod macros;
+mod managers;
+mod telemetry;
 
+use config::{GPM_TCP_ADDR, MAX_TCP_CONNECTIONS};
 use log::*;
-
 use anyhow::Result;
-use managers::ManagerChannelData;
-use tokio::{
-    io::{AsyncReadExt, AsyncWriteExt}, 
-    net::{
-        TcpListener, 
-        TcpStream
-    },
-    sync::{mpsc::Sender, oneshot}
-};
-use prost::Message;
-use std::{any::Any, io::Cursor};
 use bytes::BytesMut;
+use managers::ManagerChannelData;
+use prost::Message;
 use std::collections::HashMap;
-
+use std::sync::Arc;
+use std::{any::Any, io::Cursor};
+use tokio::sync::Semaphore;
+use tokio::{
+    io::{AsyncReadExt, AsyncWriteExt},
+    net::{TcpListener, TcpStream},
+    sync::{mpsc::Sender, oneshot},
+};
 use crate::_dispatch_task as dispatch_task;
-
-use crate::managers::{Manager, ResourceManager, Bms, Emg, Maestro};
+use crate::_init_resource_managers as init_resource_managers;
+use crate::managers::{Bms, Emg, Maestro, Manager, ResourceManager};
 
 type ManagerChannelMap = HashMap<String, Sender<ManagerChannelData>>;
 
@@ -48,34 +46,28 @@ use sgcp::*;
 
 #[tokio::main]
 async fn main() {
+    // boot up
     config::init();
     let manager_channel_map = init_resource_managers().await;
-    tokio::spawn(telemetry::http::start_server());
-    let listener = TcpListener::bind("127.0.0.1:4760").await.unwrap();
-    info!("Listening on port 4760");
+    // tokio::spawn(telemetry::http::start_server());
+
+    let listener = TcpListener::bind(GPM_TCP_ADDR).await.unwrap();
+    let sem = Arc::new(Semaphore::new(MAX_TCP_CONNECTIONS));
+    info!("Listening on {:?}", GPM_TCP_ADDR);
     loop {
-        // @todo: krarpit need to bound the number of active connections GPM can maintain
-        let (stream, _) = listener.accept().await.unwrap();
+        let sem_clone = Arc::clone(&sem);
+        let (stream, client_addr) = listener.accept().await.unwrap();
         let send_channel_map = manager_channel_map.clone();
         tokio::spawn(async move {
-            handle_connection(stream, &send_channel_map).await.unwrap();
+            let aq = sem_clone.try_acquire();
+            if let Ok(_) = aq {
+                info!("Accpeted new remote connection from host={:?}", client_addr);
+                handle_connection(stream, &send_channel_map).await.unwrap();
+            } else {
+                error!("Rejected new remote connection from host={:?}, currently serving maximum_clients={:?}", client_addr, MAX_TCP_CONNECTIONS)
+            }
         });
     }
-}
-
-async fn init_resource_managers() -> ManagerChannelMap {
-    let mut map = HashMap::new();
-    init_resource_manager(Manager::BmsManager(Bms::new()), Component::Bms, &mut map).await;
-    init_resource_manager(Manager::EmgManager(Emg::new()), Component::Emg, &mut map).await;
-    init_resource_manager(Manager::MaestroManager(Maestro::new()), Component::Maestro, &mut map).await;
-    map
-}
-
-async fn init_resource_manager(mut manager: managers::Manager, component: Component, map: &mut ManagerChannelMap) {
-    info!("Initializing resource_manager_task={:?}", component.as_str_name());
-    manager.init().unwrap();
-    map.insert(component.as_str_name().to_string(), manager.tx());
-    tokio::spawn(async move { manager.run().await; });
 }
 
 // Parses protobuf struct from stream and handles the request.
@@ -85,7 +77,7 @@ async fn handle_connection(mut stream: TcpStream, map: &ManagerChannelMap) -> Re
     match stream.read_buf(&mut buf).await {
         Ok(0) => {
             error!("Could not read incoming request, connection closed.");
-        },
+        }
         Ok(_) => {
             let req = deserialize_sgcp_request(&mut buf).unwrap();
             let res = dispatch_task(req, &map).await.unwrap();
@@ -98,12 +90,18 @@ async fn handle_connection(mut stream: TcpStream, map: &ManagerChannelMap) -> Re
     Ok(())
 }
 
+pub fn deserialize_sgcp_request(buf: &mut BytesMut) -> Result<sgcp::Request, prost::DecodeError> {
+    sgcp::Request::decode(&mut Cursor::new(buf))
+}
+
+init_resource_managers! {
+    Component::Bms => Manager::BmsManager(Bms::new()),
+    Component::Emg => Manager::EmgManager(Emg::new()),
+    Component::Maestro => Manager::MaestroManager(Maestro::new())
+}
+
 dispatch_task! {
     Component::Bms => (bms::Task, request::TaskData::BmsData, ManagerChannelData::BmsChannelData),
     Component::Emg => (emg::Task, request::TaskData::EmgData, ManagerChannelData::EmgChannelData),
     Component::Maestro => (maestro::Task, request::TaskData::MaestroData, ManagerChannelData::MaestroChannelData)
-}
-
-pub fn deserialize_sgcp_request(buf: &mut BytesMut) -> Result<sgcp::Request, prost::DecodeError> {
-    sgcp::Request::decode(&mut Cursor::new(buf))
 }
