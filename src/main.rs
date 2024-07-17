@@ -3,11 +3,13 @@
 // This file contains the main TCP connection loop and is responsible for
 // delegating incoming commands to the appropiate resource mamagers.
 mod config;
+mod connection;
 mod macros;
 mod managers;
 mod telemetry;
 
 use config::{GPM_TCP_ADDR, MAX_TCP_CONNECTIONS};
+use connection::Connection;
 use log::*;
 use anyhow::Result;
 use bytes::BytesMut;
@@ -29,20 +31,7 @@ use crate::managers::{Bms, Emg, Maestro, Manager, ResourceManager};
 type ManagerChannelMap = HashMap<String, Sender<ManagerChannelData>>;
 
 // Import protobuf generated code to handle de/serialization
-pub mod sgcp {
-    include!(concat!(env!("OUT_DIR"), "/sgcp.rs"));
-    pub mod bms {
-        include!(concat!(env!("OUT_DIR"), "/sgcp.bms.rs"));
-    }
-    pub mod emg {
-        include!(concat!(env!("OUT_DIR"), "/sgcp.emg.rs"));
-    }
-    pub mod maestro {
-        include!(concat!(env!("OUT_DIR"), "/sgcp.maestro.rs"));
-    }
-}
-
-use sgcp::*;
+import_sgcp!();
 
 #[tokio::main]
 async fn main() {
@@ -73,25 +62,15 @@ async fn main() {
 // Parses protobuf struct from stream and handles the request.
 async fn handle_connection(mut stream: TcpStream, map: &ManagerChannelMap) -> Result<()> {
     // @todo: krarpit implement framing abstraction for tcp stream
-    let mut buf = BytesMut::with_capacity(1024);
-    match stream.read_buf(&mut buf).await {
-        Ok(0) => {
-            error!("Could not read incoming request, connection closed.");
-        }
-        Ok(_) => {
-            let req = deserialize_sgcp_request(&mut buf).unwrap();
+    let mut conn = Connection::new(stream);
+    match conn.read_frame().await.unwrap() {
+        Some(req) => {
             let res = dispatch_task(req, &map).await.unwrap();
-            stream.write(res.as_bytes()).await.unwrap();
-        }
-        Err(e) => {
-            error!("Failed to read from socket; err={:?}", e);
-        }
+            // stream.write(res.as_bytes()).await.unwrap();
+        },
+        _ => todo!()
     }
     Ok(())
-}
-
-pub fn deserialize_sgcp_request(buf: &mut BytesMut) -> Result<sgcp::Request, prost::DecodeError> {
-    sgcp::Request::decode(&mut Cursor::new(buf))
 }
 
 init_resource_managers! {
