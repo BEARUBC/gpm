@@ -9,7 +9,8 @@ use tokio::{
     sync::{mpsc::Sender, oneshot},
 };
 use std::io::Cursor;
-use crate::{config::READ_BUFFER_CAPACITY, import_sgcp, Request};
+
+use crate::{config::READ_BUFFER_CAPACITY, Request};
 
 pub struct Connection {
     stream: TcpStream,

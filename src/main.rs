@@ -3,13 +3,14 @@
 // This file contains the main TCP connection loop and is responsible for
 // delegating incoming commands to the appropiate resource mamagers.
 mod config;
-mod connection;
+mod streaming;
 mod macros;
 mod managers;
 mod telemetry;
+mod server;
 
 use config::{GPM_TCP_ADDR, MAX_TCP_CONNECTIONS};
-use connection::Connection;
+use streaming::Connection;
 use log::*;
 use anyhow::Result;
 use bytes::BytesMut;
@@ -35,52 +36,15 @@ import_sgcp!();
 
 #[tokio::main]
 async fn main() {
-    // boot up
     config::init();
-    let manager_channel_map = init_resource_managers().await;
-    // tokio::spawn(telemetry::http::start_server());
-
-    let listener = TcpListener::bind(GPM_TCP_ADDR).await.unwrap();
-    let sem = Arc::new(Semaphore::new(MAX_TCP_CONNECTIONS));
-    info!("Listening on {:?}", GPM_TCP_ADDR);
-    loop {
-        let sem_clone = Arc::clone(&sem);
-        let (stream, client_addr) = listener.accept().await.unwrap();
-        let send_channel_map = manager_channel_map.clone();
-        tokio::spawn(async move {
-            let aq = sem_clone.try_acquire();
-            if let Ok(_) = aq {
-                info!("Accpeted new remote connection from host={:?}", client_addr);
-                handle_connection(stream, &send_channel_map).await.unwrap();
-            } else {
-                error!("Rejected new remote connection from host={:?}, currently serving maximum_clients={:?}", client_addr, MAX_TCP_CONNECTIONS)
-            }
-        });
-    }
+    tokio::spawn(telemetry::http::start_server());
+    server::init_gpm_listener(init_resource_managers().await).await;
 }
 
-// Parses protobuf struct from stream and handles the request.
-async fn handle_connection(mut stream: TcpStream, map: &ManagerChannelMap) -> Result<()> {
-    // @todo: krarpit implement framing abstraction for tcp stream
-    let mut conn = Connection::new(stream);
-    match conn.read_frame().await.unwrap() {
-        Some(req) => {
-            let res = dispatch_task(req, &map).await.unwrap();
-            // stream.write(res.as_bytes()).await.unwrap();
-        },
-        _ => todo!()
-    }
-    Ok(())
-}
-
+// Initializes the resource managers and returns a map containing the mpsc
+// channels to each manager
 init_resource_managers! {
     Component::Bms => Manager::BmsManager(Bms::new()),
     Component::Emg => Manager::EmgManager(Emg::new()),
     Component::Maestro => Manager::MaestroManager(Maestro::new())
-}
-
-dispatch_task! {
-    Component::Bms => (bms::Task, request::TaskData::BmsData, ManagerChannelData::BmsChannelData),
-    Component::Emg => (emg::Task, request::TaskData::EmgData, ManagerChannelData::EmgChannelData),
-    Component::Maestro => (maestro::Task, request::TaskData::MaestroData, ManagerChannelData::MaestroChannelData)
 }
