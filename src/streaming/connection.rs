@@ -42,7 +42,9 @@ impl Connection {
     ///
     /// The function waits until it has retrieved enough data to parse a frame.
     /// Any data remaining in the read buffer after the frame has been parsed is
-    /// kept there for the next call to `read_frame`.
+    /// kept there for the next call to `read_frame`. If the peer cleanly closes the
+    /// connection `Ok(None)` is returned. If the connection is not cleanly closed
+    /// (i.e buffer is non-empty) an Err is returned.
     pub async fn read_frame(&mut self) -> Result<Option<Request>> {
         loop {
             // Attempts to parse a frame from the buffered data if enough data
@@ -67,17 +69,22 @@ impl Connection {
         }
     }
 
-    pub async fn write(&mut self, buf: &[u8]) -> usize {
-        self.stream.write(buf).await.unwrap_or_else(|error| {
-            error!("Write to stream failed with error={:?}", error);
-            0
-        })
+    /// Write given buffer of data and flushes any buffered writes. Returns an `Err` if
+    /// write or flush fails.
+    pub async fn write(&mut self, buf: &[u8]) -> Result<()> {
+        self.stream
+            .write(buf)
+            .await
+            .map(|_| ())
+            .map_err(|err| err.into())
+            .and(self.stream.flush().await.map_err(|err| err.into()))
     }
 
     /// Tries to parse a frame from the buffer. If the buffer contains enough
     /// data, the frame is returned and the data removed from the buffer. If not
     /// enough data has been buffered yet, `Ok(None)` is returned. If the
-    /// buffered data does not represent a valid frame, `Err` is returned.
+    /// buffered data does not represent a valid frame, or read fails for some
+    /// reason, an `Err` is returned.
     async fn parse_frame(&mut self) -> crate::Result<Option<Request>> {
         if (self.buffer.is_empty()) {
             return Ok(None);
@@ -86,7 +93,6 @@ impl Connection {
         let len = buf.get_u64();
         info!("Length of recieved frame is {:?}", len);
         let mut data = vec![0u8; len.try_into().unwrap()];
-        info!("[Buffer Dump] {:?}", data);
         match buf.read_exact(&mut data).await {
             Err(err) => match err.kind() {
                 ErrorKind::UnexpectedEof => {
@@ -100,6 +106,7 @@ impl Connection {
             },
             _ => (),
         }
+        // Drop all read data
         self.buffer
             .advance(<u64 as TryInto<usize>>::try_into(len).unwrap() + 8);
         let parsed_frame = Request::decode(Bytes::from(data))?;

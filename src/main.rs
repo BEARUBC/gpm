@@ -47,7 +47,8 @@ import_sgcp!();
 async fn main() {
     config::init();
     tokio::spawn(telemetry::http::start_server());
-    server::init_gpm_listener(init_resource_managers().await).await;
+    let manager_channel_map = init_resource_managers().await;
+    server::init_gpm_listener(manager_channel_map).await;
 }
 
 // Initializes the resource managers and returns a map containing the mpsc

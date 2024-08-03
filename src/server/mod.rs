@@ -1,12 +1,16 @@
 use std::sync::Arc;
 
+use anyhow::Error;
 use anyhow::Result;
 use log::error;
 use log::info;
+use log::warn;
+use request::TaskData::*;
 use tokio::net::TcpListener;
 use tokio::net::TcpStream;
 use tokio::sync::oneshot;
 use tokio::sync::Semaphore;
+use ManagerChannelData::*;
 
 use crate::config::GPM_TCP_ADDR;
 use crate::config::MAX_TCP_CONNECTIONS;
@@ -35,35 +39,63 @@ pub async fn init_gpm_listener(manager_channel_map: ManagerChannelMap) {
         };
         let send_channel_map = manager_channel_map.clone();
         tokio::spawn(async move {
+            // Bounds number of concurrent connections
             if let Ok(_) = sem_clone.try_acquire() {
-                // Bounds number of concurrent connections
                 info!("Accpeted new remote connection from host={:?}", client_addr);
                 handle_connection(stream, &send_channel_map).await.unwrap();
             } else {
-                error!("Rejected new remote connection from host={:?}, currently serving maximum_clients={:?}", client_addr, MAX_TCP_CONNECTIONS)
+                error!("Rejected new remote connection from host={:?}, currently serving maximum_clients={:?}", client_addr, MAX_TCP_CONNECTIONS);
             }
         });
     }
 }
 
-/// Parses protobuf struct from stream and handles the request.
+/// Reads protobufs from the underlying stream and dispatches tasks to the appropriate
+/// task manager.
 async fn handle_connection(mut stream: TcpStream, map: &ManagerChannelMap) -> Result<()> {
     let mut conn = Connection::new(stream);
     loop {
-        match conn.read_frame().await.unwrap() {
-            Some(req) => {
-                info!("Recieved request: {:?}", req);
-                let res = dispatch_task(req, &map).await.unwrap();
-                conn.write(res.as_bytes()).await;
+        match conn.read_frame().await {
+            Ok(val) => match val {
+                Some(req) => {
+                    info!("Recieved request: {:?}", req);
+                    let res = match dispatch_task(req, &map).await {
+                        Ok(res) => res,
+                        Err(err) => {
+                            error!("An error occurred when dispatching task; error={err}");
+                            // TODO: @krarpit return error response to peer
+                            continue;
+                        },
+                    };
+                    match conn.write(res.as_bytes()).await {
+                        Ok(_) => (),
+                        // TODO: @krarpit implement retry logic for such failures
+                        Err(err) => error!(
+                            "An error occurred when writing response to peer; error={:?}",
+                            err
+                        ),
+                    };
+                },
+                None => {
+                    info!("Connection closed with peer");
+                    break;
+                },
             },
-            _ => todo!(),
+            Err(err) => {
+                error!("Reading frame from stream failed with error={:?}", err);
+                break;
+            },
         }
     }
     Ok(())
 }
 
+/// Dispatches a sgcp::Request to the appropiate task manager
+/// Component::<component> => (sgcp::<component>::Task, sgcp::<component>::TaskData, ChannelData for
+/// <component>) TODO: @krarpit clean up this macro, seems messy to have to pass in these rather
+/// arbitrary structs
 dispatch_task! {
-    Component::Bms => (bms::Task, request::TaskData::BmsData, ManagerChannelData::BmsChannelData),
-    Component::Emg => (emg::Task, request::TaskData::EmgData, ManagerChannelData::EmgChannelData),
-    Component::Maestro => (maestro::Task, request::TaskData::MaestroData, ManagerChannelData::MaestroChannelData)
+    Component::Bms => (bms::Task, BmsData, BmsChannelData),
+    Component::Emg => (emg::Task, EmgData, EmgChannelData),
+    Component::Maestro => (maestro::Task, MaestroData, MaestroChannelData)
 }

@@ -36,6 +36,7 @@ pub async fn start_server() -> Result<(), Box<dyn std::error::Error + Send + Syn
         let (stream, client_addr) = listener.accept().await.unwrap();
         let io = TokioIo::new(stream);
         tokio::task::spawn(async move {
+            // Bounds number of concurrent connections
             if let Ok(_) = sem_clone.try_acquire() {
                 if let Err(err) = http1::Builder::new()
                     .serve_connection(io, service_fn(get_metrics))

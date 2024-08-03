@@ -8,6 +8,10 @@ pub use emg::Emg;
 pub use maestro::Maestro;
 use tokio::sync::mpsc::Sender;
 
+use crate::async_match_managers;
+use crate::match_managers;
+
+// Represents the response data type from a task manager
 type Responder<T> = tokio::sync::oneshot::Sender<T>;
 
 const MAX_MPSC_CHANNEL_BUFFER: usize = 32;
@@ -16,7 +20,7 @@ pub trait ResourceManager {
     async fn run(&mut self);
     fn init(&self) -> Result<()>;
     fn tx(&self) -> Sender<ManagerChannelData>;
-    fn handle_task(&self, task_code: i32);
+    fn handle_task(&self, task_data: ManagerChannelData) -> Result<()>;
 }
 
 pub enum Manager {
@@ -25,6 +29,7 @@ pub enum Manager {
     MaestroManager(Maestro),
 }
 
+#[derive(Debug)]
 pub enum ManagerChannelData {
     BmsChannelData(bms::ChannelData),
     EmgChannelData(emg::ChannelData),
@@ -33,30 +38,18 @@ pub enum ManagerChannelData {
 
 impl ResourceManager for Manager {
     fn init(&self) -> Result<()> {
-        match self {
-            Manager::BmsManager(bms) => bms.init(),
-            Manager::EmgManager(emg) => emg.init(),
-            Manager::MaestroManager(maestro) => maestro.init(),
-        }
+        match_managers!(self, init)
     }
 
     fn tx(&self) -> Sender<ManagerChannelData> {
-        match self {
-            Manager::BmsManager(bms) => bms.tx(),
-            Manager::EmgManager(emg) => emg.tx(),
-            Manager::MaestroManager(maestro) => maestro.tx(),
-        }
+        match_managers!(self, tx)
     }
 
-    fn handle_task(&self, task_code: i32) {
-        // stub
+    fn handle_task(&self, task_data: ManagerChannelData) -> Result<()> {
+        match_managers!(self, handle_task, task_data)
     }
 
     async fn run(&mut self) {
-        match self {
-            Manager::BmsManager(bms) => bms.run().await,
-            Manager::EmgManager(emg) => emg.run().await,
-            Manager::MaestroManager(maestro) => maestro.run().await,
-        }
+        async_match_managers!(self, run)
     }
 }
