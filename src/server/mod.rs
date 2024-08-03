@@ -1,10 +1,21 @@
 use std::sync::Arc;
-use log::{error, info};
-use tokio::{net::{TcpListener, TcpStream}, sync::{oneshot, Semaphore}};
-use anyhow::Result;
-use crate::{config::{GPM_TCP_ADDR, MAX_TCP_CONNECTIONS}, ManagerChannelMap, _dispatch_task as dispatch_task, import_sgcp, managers::ManagerChannelData, streaming::Connection};
 
+use anyhow::Result;
+use log::error;
+use log::info;
+use tokio::net::TcpListener;
+use tokio::net::TcpStream;
+use tokio::sync::oneshot;
+use tokio::sync::Semaphore;
+
+use crate::config::GPM_TCP_ADDR;
+use crate::config::MAX_TCP_CONNECTIONS;
+use crate::ManagerChannelMap;
+use crate::_dispatch_task as dispatch_task;
+use crate::import_sgcp;
+use crate::managers::ManagerChannelData;
 use crate::sgcp::*;
+use crate::streaming::Connection;
 
 pub async fn init_gpm_listener(manager_channel_map: ManagerChannelMap) {
     let listener = TcpListener::bind(GPM_TCP_ADDR).await.unwrap();
@@ -12,11 +23,20 @@ pub async fn init_gpm_listener(manager_channel_map: ManagerChannelMap) {
     info!("Listening on {:?}", GPM_TCP_ADDR);
     loop {
         let sem_clone = Arc::clone(&sem);
-        let (stream, client_addr) = listener.accept().await.unwrap();
+        let (stream, client_addr) = match listener.accept().await {
+            Ok(conn) => conn,
+            Err(err) => {
+                error!(
+                    "Encountered an error when accepting new connection; error={:?}",
+                    err
+                );
+                continue;
+            },
+        };
         let send_channel_map = manager_channel_map.clone();
         tokio::spawn(async move {
-            let aq = sem_clone.try_acquire();
-            if let Ok(_) = aq {
+            if let Ok(_) = sem_clone.try_acquire() {
+                // Bounds number of concurrent connections
                 info!("Accpeted new remote connection from host={:?}", client_addr);
                 handle_connection(stream, &send_channel_map).await.unwrap();
             } else {
@@ -26,17 +46,18 @@ pub async fn init_gpm_listener(manager_channel_map: ManagerChannelMap) {
     }
 }
 
-// Parses protobuf struct from stream and handles the request.
+/// Parses protobuf struct from stream and handles the request.
 async fn handle_connection(mut stream: TcpStream, map: &ManagerChannelMap) -> Result<()> {
-    // @todo: krarpit implement framing abstraction for tcp stream
     let mut conn = Connection::new(stream);
-    match conn.read_frame().await.unwrap() {
-        Some(req) => {
-            info!("Recieved request: {:?}", req);
-            let res = dispatch_task(req, &map).await.unwrap();
-            // stream.write(res.as_bytes()).await.unwrap();
-        },
-        _ => todo!()
+    loop {
+        match conn.read_frame().await.unwrap() {
+            Some(req) => {
+                info!("Recieved request: {:?}", req);
+                let res = dispatch_task(req, &map).await.unwrap();
+                conn.write(res.as_bytes()).await;
+            },
+            _ => todo!(),
+        }
     }
     Ok(())
 }

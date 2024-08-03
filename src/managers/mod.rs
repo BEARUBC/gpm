@@ -3,11 +3,10 @@ mod emg;
 mod maestro;
 
 use anyhow::Result;
-use tokio::sync::mpsc::Sender;
-
 pub use bms::Bms;
 pub use emg::Emg;
 pub use maestro::Maestro;
+use tokio::sync::mpsc::Sender;
 
 type Responder<T> = tokio::sync::oneshot::Sender<T>;
 

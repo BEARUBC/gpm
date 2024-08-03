@@ -1,21 +1,33 @@
 // A simple prefix-length framing abstraction for streaming protobufs
-use anyhow::{Error, Result};
+use std::io::Cursor;
+use std::io::ErrorKind;
+use std::time::Duration;
+
+use anyhow::Error;
+use anyhow::Result;
+use bytes::Buf;
+use bytes::Bytes;
 use bytes::BytesMut;
 use log::error;
-use prost::Message;
-use tokio::{
-    io::{AsyncReadExt, AsyncWriteExt},
-    net::{TcpListener, TcpStream},
-    sync::{mpsc::Sender, oneshot},
-};
-use std::io::Cursor;
 use log::info;
+use log::warn;
+use prost::Message;
+use tokio::io::AsyncReadExt;
+use tokio::io::AsyncWriteExt;
+use tokio::net::TcpListener;
+use tokio::net::TcpStream;
+use tokio::sync::mpsc::Sender;
+use tokio::sync::oneshot;
+use tokio::time::sleep;
 
-use crate::{config::READ_BUFFER_CAPACITY, request, Request};
+use crate::config::READ_BUFFER_CAPACITY;
+use crate::request;
+use crate::Request;
 
 pub struct Connection {
     stream: TcpStream,
-    buffer: BytesMut
+    // The buffer for reading protobuf "frames"
+    buffer: BytesMut,
 }
 
 impl Connection {
@@ -26,29 +38,71 @@ impl Connection {
         }
     }
 
+    /// Read a single protobuf frame from the underlying stream.
+    ///
+    /// The function waits until it has retrieved enough data to parse a frame.
+    /// Any data remaining in the read buffer after the frame has been parsed is
+    /// kept there for the next call to `read_frame`.
     pub async fn read_frame(&mut self) -> Result<Option<Request>> {
         loop {
-            if let Some(req) = self.parse_frame()? {
+            // Attempts to parse a frame from the buffered data if enough data
+            // has been read.
+            if let Some(req) = self.parse_frame().await? {
                 return Ok(Some(req));
             }
+
+            // There isn't enough data in the buffer, so attempt to read more
+            // data.
             if 0 == self.stream.read_buf(&mut self.buffer).await? {
+                // The remote has closed the connection. If the buffer is non-empty,
+                // that indicates the peer closed the connection in the middle of
+                // sending a frame.
                 if self.buffer.is_empty() {
                     return Ok(None);
                 } else {
                     error!("Connection closed on client with non-empty buffer");
-                    // return Err("connection reset by peer".into());
-                    return Ok(None);
+                    return Err(Error::msg("Connection unexpectedly closed by peer"));
                 }
             }
         }
     }
 
-    fn parse_frame(&mut self) -> crate::Result<Option<Request>> {
+    pub async fn write(&mut self, buf: &[u8]) -> usize {
+        self.stream.write(buf).await.unwrap_or_else(|error| {
+            error!("Write to stream failed with error={:?}", error);
+            0
+        })
+    }
+
+    /// Tries to parse a frame from the buffer. If the buffer contains enough
+    /// data, the frame is returned and the data removed from the buffer. If not
+    /// enough data has been buffered yet, `Ok(None)` is returned. If the
+    /// buffered data does not represent a valid frame, `Err` is returned.
+    async fn parse_frame(&mut self) -> crate::Result<Option<Request>> {
         if (self.buffer.is_empty()) {
             return Ok(None);
         }
         let mut buf = Cursor::new(&self.buffer[..]);
-        Ok(Some(Request::decode(&mut buf).unwrap()))
-        // @todo krarpit complete
-    } 
+        let len = buf.get_u64();
+        info!("Length of recieved frame is {:?}", len);
+        let mut data = vec![0u8; len.try_into().unwrap()];
+        info!("[Buffer Dump] {:?}", data);
+        match buf.read_exact(&mut data).await {
+            Err(err) => match err.kind() {
+                ErrorKind::UnexpectedEof => {
+                    warn!(
+                        "Not enough bytes read in buffer; Failed with error={:?}",
+                        err
+                    );
+                    return Ok(None);
+                },
+                _ => return Err(err.into()),
+            },
+            _ => (),
+        }
+        self.buffer
+            .advance(<u64 as TryInto<usize>>::try_into(len).unwrap() + 8);
+        let parsed_frame = Request::decode(Bytes::from(data))?;
+        Ok(Some(parsed_frame))
+    }
 }

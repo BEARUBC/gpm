@@ -1,9 +1,15 @@
 // All tasks operating on the EMG system live in this file.
-use super::{ManagerChannelData, ResourceManager, Responder, MAX_MPSC_CHANNEL_BUFFER};
-use crate::sgcp::emg::*;
 use anyhow::Result;
 use log::*;
-use tokio::sync::mpsc::{channel, Receiver, Sender};
+use tokio::sync::mpsc::channel;
+use tokio::sync::mpsc::Receiver;
+use tokio::sync::mpsc::Sender;
+
+use super::ManagerChannelData;
+use super::ResourceManager;
+use super::Responder;
+use super::MAX_MPSC_CHANNEL_BUFFER;
+use crate::sgcp::emg::*;
 
 pub type ChannelData = (EmgMessage, Responder<std::string::String>);
 
@@ -43,7 +49,7 @@ impl ResourceManager for Emg {
                 ManagerChannelData::EmgChannelData(data) => {
                     info!("Recieved task_code={:?}", data.0);
                     data.1.send("Successfully ran task!".to_string());
-                }
+                },
                 _ => error!("Mismatched message type"),
             }
         }

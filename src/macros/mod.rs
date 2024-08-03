@@ -50,17 +50,15 @@ macro_rules! _init_resource_managers {
             $component:expr => $variant:expr
         ),*
     } => {
-        async fn init_resource_managers() -> ManagerChannelMap {
-            let mut map = HashMap::new();
-            $(
-                let mut manager = $variant;
-                info!("Initializing resource_manager_task={:?}", $component.as_str_name());
-                manager.init().unwrap();
-                map.insert($component.as_str_name().to_string(), manager.tx());
-                tokio::spawn(async move { manager.run().await; });
-            )*
-            map
-        }
+        let mut map = HashMap::new();
+        $(
+            let mut manager = $variant;
+            info!("Initializing resource_manager_task={:?}", $component.as_str_name());
+            manager.init().unwrap();
+            map.insert($component.as_str_name().to_string(), manager.tx());
+            tokio::spawn(async move { manager.run().await; });
+        )*
+        map
     };
 }
 

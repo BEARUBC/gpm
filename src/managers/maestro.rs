@@ -1,9 +1,15 @@
 // All tasks operating on the Maestro servo controller live in this file.
-use super::{ManagerChannelData, ResourceManager, Responder, MAX_MPSC_CHANNEL_BUFFER};
-use crate::sgcp::maestro::*;
 use anyhow::Result;
 use log::*;
-use tokio::sync::mpsc::{channel, Receiver, Sender};
+use tokio::sync::mpsc::channel;
+use tokio::sync::mpsc::Receiver;
+use tokio::sync::mpsc::Sender;
+
+use super::ManagerChannelData;
+use super::ResourceManager;
+use super::Responder;
+use super::MAX_MPSC_CHANNEL_BUFFER;
+use crate::sgcp::maestro::*;
 
 pub type ChannelData = (MaestroMessage, Responder<std::string::String>);
 
@@ -43,7 +49,7 @@ impl ResourceManager for Maestro {
                 ManagerChannelData::MaestroChannelData(data) => {
                     info!("Recieved task_code={:?}", data.0);
                     data.1.send("Successfully ran task!".to_string());
-                }
+                },
                 _ => error!("Mismatched message type"),
             }
         }

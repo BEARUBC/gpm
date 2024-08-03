@@ -1,0 +1,69 @@
+# This rustfmt file is added for configuration, but in practice much of our
+# code is hand-formatted, frequently with more readable results.
+
+# Todo: report_todo and report_fixme
+
+# Modules
+reorder_modules = true
+reorder_impl_items = true
+merge_derives = true
+
+# Style
+## Braces
+brace_style = "SameLineWhere"
+
+## Spaces
+tab_spaces = 4
+spaces_around_ranges = false
+space_before_colon = false
+space_after_colon = true
+inline_attribute_width = 0
+indent_style = "Block"
+
+## Punctuation
+type_punctuation_density = "Wide"
+trailing_semicolon = true
+trailing_comma = "Vertical"
+match_block_trailing_comma = true
+
+# Function
+fn_single_line = false
+fn_params_layout = "Tall"
+# fn_call_width = 60
+force_multiline_blocks = false
+
+# Imports
+reorder_imports = true
+imports_granularity = "Item"
+imports_layout = "Horizontal"
+imports_indent = "Block"
+group_imports = "StdExternalCrate"
+
+# Comments:
+normalize_comments = true
+wrap_comments = true
+normalize_doc_attributes = true
+comment_width = 100
+# report_todo = "Unnumbered"
+# report_fixme = "Unnumbered"
+
+# Where Clauses
+where_single_line = false
+
+# Compatibility
+edition = "2018"
+
+# TODO
+use_field_init_shorthand = true
+
+# General
+max_width = 100
+use_small_heuristics = "Default"
+overflow_delimited_expr = true
+blank_lines_upper_bound = 3
+
+# Ignored
+ignore = []
+
+# enum_discrim_align_threshold = 20
+# struct_field_align_threshold = 20

@@ -1,29 +1,31 @@
 // This file contains a tiny http server which exposes system metrics
 // and health check endpoints. These are then scraped by the
 // Prometheus server running remotely.
-use chrono::Utc;
-use log::*;
-use psutil::cpu::CpuPercentCollector;
-use psutil::memory::virtual_memory;
-use std::sync::Arc;
-use std::time::Duration;
-use tokio::sync::Semaphore;
-use tokio::time;
-use anyhow::Result;
 use std::collections::HashMap;
 use std::convert::Infallible;
 use std::net::SocketAddr;
+use std::sync::Arc;
+use std::time::Duration;
+
+use anyhow::Result;
+use chrono::Utc;
 use http_body_util::Full;
 use hyper::body::Bytes;
 use hyper::server::conn::http1;
 use hyper::service::service_fn;
-use hyper::{Request, Response};
+use hyper::Request;
+use hyper::Response;
 use hyper_util::rt::TokioIo;
+use log::*;
+use psutil::cpu::CpuPercentCollector;
+use psutil::memory::virtual_memory;
 use tokio::net::TcpListener;
-
-use crate::config::{MAX_TCP_CONNECTIONS, TELEMETRY_TCP_ADDR};
+use tokio::sync::Semaphore;
+use tokio::time;
 
 use super::MetricDataPoint;
+use crate::config::MAX_TCP_CONNECTIONS;
+use crate::config::TELEMETRY_TCP_ADDR;
 
 pub async fn start_server() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let listener = TcpListener::bind(TELEMETRY_TCP_ADDR).await.unwrap();
@@ -34,8 +36,7 @@ pub async fn start_server() -> Result<(), Box<dyn std::error::Error + Send + Syn
         let (stream, client_addr) = listener.accept().await.unwrap();
         let io = TokioIo::new(stream);
         tokio::task::spawn(async move {
-            let aq = sem_clone.try_acquire();
-            if let Ok(_) = aq {
+            if let Ok(_) = sem_clone.try_acquire() {
                 if let Err(err) = http1::Builder::new()
                     .serve_connection(io, service_fn(get_metrics))
                     .await

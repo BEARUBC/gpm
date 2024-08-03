@@ -1,10 +1,16 @@
 // All tasks operating on the BMS system live in this file.
+use std::path::Component;
+
 use anyhow::Result;
 use log::*;
-use std::path::Component;
-use tokio::sync::mpsc::{channel, Receiver, Sender};
+use tokio::sync::mpsc::channel;
+use tokio::sync::mpsc::Receiver;
+use tokio::sync::mpsc::Sender;
 
-use super::{ManagerChannelData, ResourceManager, Responder, MAX_MPSC_CHANNEL_BUFFER};
+use super::ManagerChannelData;
+use super::ResourceManager;
+use super::Responder;
+use super::MAX_MPSC_CHANNEL_BUFFER;
 use crate::sgcp::bms::*;
 
 type BmsMessage = (Task, Option<TaskData>);
@@ -44,7 +50,7 @@ impl ResourceManager for Bms {
                 ManagerChannelData::BmsChannelData(data) => {
                     info!("Recieved task_code={:?}", data.0);
                     data.1.send("Successfully ran task!".to_string());
-                }
+                },
                 _ => error!("Mismatched message type"),
             }
         }
