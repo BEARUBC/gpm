@@ -26,6 +26,7 @@ use tokio::time;
 use super::MetricDataPoint;
 use crate::config::MAX_CONCURRENT_CONNECTIONS;
 use crate::config::TELEMETRY_TCP_ADDR;
+use crate::retry;
 
 pub async fn start_server() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let listener = TcpListener::bind(TELEMETRY_TCP_ADDR).await.unwrap();
@@ -37,7 +38,7 @@ pub async fn start_server() -> Result<(), Box<dyn std::error::Error + Send + Syn
         let io = TokioIo::new(stream);
         tokio::task::spawn(async move {
             // Bounds number of concurrent connections
-            if let Ok(_) = sem_clone.try_acquire() {
+            if let Ok(_) = retry!(sem_clone.try_acquire()) {
                 if let Err(err) = http1::Builder::new()
                     .serve_connection(io, service_fn(get_metrics))
                     .await

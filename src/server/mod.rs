@@ -14,6 +14,7 @@ use ManagerChannelData::*;
 
 use crate::config::GPM_TCP_ADDR;
 use crate::config::MAX_CONCURRENT_CONNECTIONS;
+use crate::retry;
 use crate::ManagerChannelMap;
 use crate::_dispatch_task as dispatch_task;
 use crate::import_sgcp;
@@ -40,7 +41,7 @@ pub async fn init_gpm_listener(manager_channel_map: ManagerChannelMap) {
         let send_channel_map = manager_channel_map.clone();
         tokio::spawn(async move {
             // Bounds number of concurrent connections
-            if let Ok(_) = sem_clone.try_acquire() {
+            if let Ok(_) = retry!(sem_clone.try_acquire()) {
                 info!("Accpeted new remote connection from host={:?}", client_addr);
                 handle_connection(stream, &send_channel_map).await.unwrap();
             } else {
@@ -67,9 +68,8 @@ async fn handle_connection(mut stream: TcpStream, map: &ManagerChannelMap) -> Re
                             continue;
                         },
                     };
-                    match conn.write(res.as_bytes()).await {
+                    match retry!(conn.write(res.as_bytes()).await) {
                         Ok(_) => (),
-                        // TODO: @krarpit implement retry logic for such failures
                         Err(err) => error!(
                             "An error occurred when writing response to peer; error={:?}",
                             err
@@ -91,8 +91,7 @@ async fn handle_connection(mut stream: TcpStream, map: &ManagerChannelMap) -> Re
 }
 
 /// Dispatches a sgcp::Request to the appropiate task manager
-/// Component::<component> => (sgcp::<component>::Task, sgcp::<component>::TaskData, ChannelData for
-/// <component>) TODO: @krarpit clean up this macro, seems messy to have to pass in these rather
+/// TODO: @krarpit clean up this macro, seems messy to have to pass in these rather
 /// arbitrary structs
 pub async fn dispatch_task(request: Request, map: &ManagerChannelMap) -> Result<String> {
     dispatch_task! {
