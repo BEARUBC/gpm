@@ -5,6 +5,8 @@ pub const GPM_TCP_ADDR: &str = "127.0.0.1:4760";
 pub const TELEMETRY_TCP_ADDR: &str = "127.0.0.1:9999";
 pub const READ_BUFFER_CAPACITY: usize = 1024;
 pub const FRAME_PREFIX_LENGTH: usize = 8;
+pub const TELEMETRY_TICK_INTERVAL_IN_SECONDS: u64 = 1;
+pub const TELEMETRY_MAX_TICKS: usize = 5;
 
 const RUST_LOG_KEY: &str = "RUST_LOG";
 

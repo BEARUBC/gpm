@@ -36,7 +36,7 @@ pub struct Maestro {
     pub tx: Sender<ManagerChannelData>,
     pub rx: Receiver<ManagerChannelData>,
     #[cfg(feature = "pi")]
-    controller: Maestro
+    controller: Maestro,
 }
 
 impl Maestro {
@@ -48,11 +48,11 @@ impl Maestro {
             .block_duration(Duration::from_millis(100))
             .try_into()
             .unwrap();
-        Maestro { 
-            tx, 
+        Maestro {
+            tx,
             rx,
             #[cfg(feature = "pi")]
-            controller
+            controller,
         }
     }
 }
@@ -74,8 +74,8 @@ impl ResourceManager for Maestro {
         let send_channel = data.1;
         let res = match task {
             Task::UndefinedTask => {
-                warn!("Encountered an undefined task definition");
-                "Undefined task, maybe you forgot to initialize the message?".to_string()
+                warn!("Encountered an undefined task type");
+                "Undefined task, did you forget to initialize the message?".to_string()
             },
             Task::OpenFist => {
                 #[cfg(not(feature = "pi"))]

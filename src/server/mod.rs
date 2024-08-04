@@ -25,7 +25,7 @@ use crate::streaming::Connection;
 pub async fn init_gpm_listener(manager_channel_map: ManagerChannelMap) {
     let listener = TcpListener::bind(GPM_TCP_ADDR).await.unwrap();
     let sem = Arc::new(Semaphore::new(MAX_CONCURRENT_CONNECTIONS));
-    info!("Listening on {:?}", GPM_TCP_ADDR);
+    info!("GPM listening on {:?}", GPM_TCP_ADDR);
     loop {
         let sem_clone = Arc::clone(&sem);
         let (stream, client_addr) = match listener.accept().await {

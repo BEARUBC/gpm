@@ -22,16 +22,19 @@ use psutil::memory::virtual_memory;
 use tokio::net::TcpListener;
 use tokio::sync::Semaphore;
 use tokio::time;
+use tokio::time::interval;
 
-use super::MetricDataPoint;
+use super::DataPoint;
 use crate::config::MAX_CONCURRENT_CONNECTIONS;
+use crate::config::TELEMETRY_MAX_TICKS;
 use crate::config::TELEMETRY_TCP_ADDR;
+use crate::config::TELEMETRY_TICK_INTERVAL_IN_SECONDS;
 use crate::retry;
 
 pub async fn start_server() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let listener = TcpListener::bind(TELEMETRY_TCP_ADDR).await.unwrap();
     let sem = Arc::new(Semaphore::new(MAX_CONCURRENT_CONNECTIONS));
-    info!("Listening on {:?}", TELEMETRY_TCP_ADDR);
+    info!("Telemetry server listening on {:?}", TELEMETRY_TCP_ADDR);
     loop {
         let sem_clone = Arc::clone(&sem);
         let (stream, client_addr) = listener.accept().await.unwrap();
@@ -52,48 +55,50 @@ pub async fn start_server() -> Result<(), Box<dyn std::error::Error + Send + Syn
     }
 }
 
-async fn check_cpu_usage_and_memory() -> Result<HashMap<String, Vec<MetricDataPoint>>> {
-    let mut map: HashMap<String, Vec<MetricDataPoint>> = HashMap::new();
-    let mut cpu_usage: Vec<MetricDataPoint> = Vec::new();
-    let mut memory_usage: Vec<MetricDataPoint> = Vec::new();
-    // @todo krarpit schedule a task that reads cpu and memory usage every 5 seconds
-    //               instead of looping here
-    for _ in 0..5 {
-        // collect cpu and memory usage once every second for the next 5 seconds
+async fn check_cpu_usage_and_memory() -> Result<HashMap<String, Vec<DataPoint>>> {
+    let mut map: HashMap<String, Vec<DataPoint>> = HashMap::new();
+    let mut cpu_usage: Vec<DataPoint> = Vec::new();
+    let mut memory_usage: Vec<DataPoint> = Vec::new();
+
+    let mut interval = interval(Duration::from_secs(TELEMETRY_TICK_INTERVAL_IN_SECONDS));
+    for _ in 0..TELEMETRY_MAX_TICKS {
+        interval.tick().await;
         cpu_usage.push(check_cpu_usage().unwrap());
         memory_usage.push(check_memory_usage().unwrap());
-        time::sleep(Duration::from_secs(1)).await;
     }
+
+    info!("CPU usage={:?}", cpu_usage);
+    info!("Memory usage={:?}", memory_usage);
+
     map.insert("cpu_usage".to_string(), cpu_usage);
     map.insert("memory_usage".to_string(), memory_usage);
     Ok(map)
 }
 
-fn check_cpu_usage() -> Result<MetricDataPoint> {
+fn check_cpu_usage() -> Result<DataPoint> {
     let mut cpu_collector = CpuPercentCollector::new().unwrap();
     let cpu_usage = cpu_collector.cpu_percent().unwrap();
-    let data_point: MetricDataPoint = MetricDataPoint {
+    let data_point: DataPoint = DataPoint {
         timestamp: Utc::now(),
         value: cpu_usage,
     };
-    info!("Current CPU Usage: {:.2}%", cpu_usage);
     Ok(data_point)
 }
 
-fn check_memory_usage() -> Result<MetricDataPoint> {
+fn check_memory_usage() -> Result<DataPoint> {
     let memory = virtual_memory().expect("Failed to get virtual memory usage");
     let memory_usage = memory.percent();
-    let data_point: MetricDataPoint = MetricDataPoint {
+    let data_point: DataPoint = DataPoint {
         timestamp: Utc::now(),
         value: memory_usage,
     };
-    info!("Current Memory Usage: {:.2}%", memory_usage);
     Ok(data_point)
 }
 
 async fn get_metrics(
     _: Request<hyper::body::Incoming>,
 ) -> Result<Response<Full<Bytes>>, Infallible> {
+    info!("Received request for metrics");
     let data = check_cpu_usage_and_memory().await.unwrap();
     let json = serde_json::to_string(&data).expect("Failed to serialize data");
     Ok(Response::new(Full::new(Bytes::from(json))))

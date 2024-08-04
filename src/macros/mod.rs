@@ -53,5 +53,5 @@ macro_rules! todo {
 macro_rules! not_on_pi {
     () => {
         warn!("Not running on the Raspberry Pi, assume success")
-    }
+    };
 }
