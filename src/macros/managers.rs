@@ -62,7 +62,7 @@ macro_rules! run_task {
         while let Some(data) = $id.rx.recv().await {
             match $id.$handler(data) {
                 Err(err) => error!("Handling task failed with error={:?}", err),
-                _ => ()
+                _ => (),
             };
         }
     };

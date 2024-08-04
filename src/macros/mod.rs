@@ -24,5 +24,12 @@ macro_rules! import_sgcp {
 macro_rules! todo {
     () => {
         error!("Not yet implemented")
+    };
+}
+
+#[macro_export]
+macro_rules! not_on_pi {
+    () => {
+        warn!("Not running on the Raspberry Pi, assume success")
     }
 }

@@ -13,7 +13,7 @@ use tokio::sync::Semaphore;
 use ManagerChannelData::*;
 
 use crate::config::GPM_TCP_ADDR;
-use crate::config::MAX_TCP_CONNECTIONS;
+use crate::config::MAX_CONCURRENT_CONNECTIONS;
 use crate::ManagerChannelMap;
 use crate::_dispatch_task as dispatch_task;
 use crate::import_sgcp;
@@ -23,7 +23,7 @@ use crate::streaming::Connection;
 
 pub async fn init_gpm_listener(manager_channel_map: ManagerChannelMap) {
     let listener = TcpListener::bind(GPM_TCP_ADDR).await.unwrap();
-    let sem = Arc::new(Semaphore::new(MAX_TCP_CONNECTIONS));
+    let sem = Arc::new(Semaphore::new(MAX_CONCURRENT_CONNECTIONS));
     info!("Listening on {:?}", GPM_TCP_ADDR);
     loop {
         let sem_clone = Arc::clone(&sem);
@@ -44,7 +44,7 @@ pub async fn init_gpm_listener(manager_channel_map: ManagerChannelMap) {
                 info!("Accpeted new remote connection from host={:?}", client_addr);
                 handle_connection(stream, &send_channel_map).await.unwrap();
             } else {
-                error!("Rejected new remote connection from host={:?}, currently serving maximum_clients={:?}", client_addr, MAX_TCP_CONNECTIONS);
+                error!("Rejected new remote connection from host={:?}, currently serving maximum_clients={:?}", client_addr, MAX_CONCURRENT_CONNECTIONS);
             }
         });
     }
@@ -63,7 +63,7 @@ async fn handle_connection(mut stream: TcpStream, map: &ManagerChannelMap) -> Re
                         Ok(res) => res,
                         Err(err) => {
                             error!("An error occurred when dispatching task; error={err}");
-                            // TODO: @krarpit return error response to peer
+                            conn.write("An error occurred; Error={err}".as_bytes());
                             continue;
                         },
                     };
@@ -94,8 +94,12 @@ async fn handle_connection(mut stream: TcpStream, map: &ManagerChannelMap) -> Re
 /// Component::<component> => (sgcp::<component>::Task, sgcp::<component>::TaskData, ChannelData for
 /// <component>) TODO: @krarpit clean up this macro, seems messy to have to pass in these rather
 /// arbitrary structs
-dispatch_task! {
-    Component::Bms => (bms::Task, BmsData, BmsChannelData),
-    Component::Emg => (emg::Task, EmgData, EmgChannelData),
-    Component::Maestro => (maestro::Task, MaestroData, MaestroChannelData)
+pub async fn dispatch_task(request: Request, map: &ManagerChannelMap) -> Result<String> {
+    dispatch_task! {
+        request,
+        map,
+        Component::Bms => (bms::Task, BmsData, BmsChannelData),
+        Component::Emg => (emg::Task, EmgData, EmgChannelData),
+        Component::Maestro => (maestro::Task, MaestroData, MaestroChannelData)
+    }
 }

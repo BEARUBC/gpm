@@ -17,7 +17,7 @@ use std::sync::Arc;
 use anyhow::Result;
 use bytes::BytesMut;
 use config::GPM_TCP_ADDR;
-use config::MAX_TCP_CONNECTIONS;
+use config::MAX_CONCURRENT_CONNECTIONS;
 use log::*;
 use managers::ManagerChannelData;
 use prost::Message;

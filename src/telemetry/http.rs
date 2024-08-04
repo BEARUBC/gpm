@@ -24,12 +24,12 @@ use tokio::sync::Semaphore;
 use tokio::time;
 
 use super::MetricDataPoint;
-use crate::config::MAX_TCP_CONNECTIONS;
+use crate::config::MAX_CONCURRENT_CONNECTIONS;
 use crate::config::TELEMETRY_TCP_ADDR;
 
 pub async fn start_server() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let listener = TcpListener::bind(TELEMETRY_TCP_ADDR).await.unwrap();
-    let sem = Arc::new(Semaphore::new(MAX_TCP_CONNECTIONS));
+    let sem = Arc::new(Semaphore::new(MAX_CONCURRENT_CONNECTIONS));
     info!("Listening on {:?}", TELEMETRY_TCP_ADDR);
     loop {
         let sem_clone = Arc::clone(&sem);
@@ -45,7 +45,7 @@ pub async fn start_server() -> Result<(), Box<dyn std::error::Error + Send + Syn
                     error!("Error serving connection: {:?}", err);
                 }
             } else {
-                error!("Rejected new remote connection from host={:?}, currently serving maximum_clients={:?}", client_addr, MAX_TCP_CONNECTIONS)
+                error!("Rejected new remote connection from host={:?}, currently serving maximum_clients={:?}", client_addr, MAX_CONCURRENT_CONNECTIONS)
             }
         });
     }

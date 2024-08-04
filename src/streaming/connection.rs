@@ -20,6 +20,7 @@ use tokio::sync::mpsc::Sender;
 use tokio::sync::oneshot;
 use tokio::time::sleep;
 
+use crate::config::FRAME_PREFIX_LENGTH;
 use crate::config::READ_BUFFER_CAPACITY;
 use crate::request;
 use crate::Request;
@@ -108,7 +109,7 @@ impl Connection {
         }
         // Drop all read data
         self.buffer
-            .advance(<u64 as TryInto<usize>>::try_into(len).unwrap() + 8);
+            .advance(<u64 as TryInto<usize>>::try_into(len).unwrap() + FRAME_PREFIX_LENGTH);
         let parsed_frame = Request::decode(Bytes::from(data))?;
         Ok(Some(parsed_frame))
     }

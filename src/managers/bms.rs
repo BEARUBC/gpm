@@ -44,8 +44,8 @@ impl ResourceManager for Bms {
 
     fn handle_task(&self, task_data: ManagerChannelData) -> Result<()> {
         let data = verify_channel_data!(task_data, ManagerChannelData::BmsChannelData)?;
-        let task = data.0.0;
-        let task_data = data.0.1;
+        let task = data.0 .0;
+        let task_data = data.0 .1;
         let send_channel = data.1;
         match task {
             Task::UndefinedTask => todo!(),

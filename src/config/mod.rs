@@ -1,9 +1,10 @@
 use std::env::set_var;
 
-pub const MAX_TCP_CONNECTIONS: usize = 1;
+pub const MAX_CONCURRENT_CONNECTIONS: usize = 1;
 pub const GPM_TCP_ADDR: &str = "127.0.0.1:4760";
 pub const TELEMETRY_TCP_ADDR: &str = "127.0.0.1:9999";
 pub const READ_BUFFER_CAPACITY: usize = 1024;
+pub const FRAME_PREFIX_LENGTH: usize = 8;
 
 const RUST_LOG_KEY: &str = "RUST_LOG";
 
