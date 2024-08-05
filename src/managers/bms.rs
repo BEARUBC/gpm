@@ -8,7 +8,9 @@ use tokio::sync::mpsc::channel;
 use tokio::sync::mpsc::Receiver;
 use tokio::sync::mpsc::Sender;
 
+use super::Manager;
 use super::ManagerChannelData;
+use super::Resource;
 use super::ResourceManager;
 use super::Responder;
 use super::MAX_MPSC_CHANNEL_BUFFER;
@@ -20,19 +22,10 @@ use crate::verify_channel_data;
 type BmsMessage = (Task, Option<TaskData>);
 pub type ChannelData = (BmsMessage, Responder<std::string::String>);
 
-pub struct Bms {
-    pub tx: Sender<ManagerChannelData>,
-    pub rx: Receiver<ManagerChannelData>,
-}
+pub struct Bms {}
+impl Resource for Bms {}
 
-impl Bms {
-    pub fn new() -> Self {
-        let (tx, mut rx) = channel(MAX_MPSC_CHANNEL_BUFFER);
-        Bms { tx, rx }
-    }
-}
-
-impl ResourceManager for Bms {
+impl ResourceManager for Manager<Bms> {
     fn init(&self) -> Result<()> {
         info!("Successfully initialized");
         Ok(()) // stub

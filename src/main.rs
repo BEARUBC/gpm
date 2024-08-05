@@ -19,6 +19,9 @@ use bytes::BytesMut;
 use config::GPM_TCP_ADDR;
 use config::MAX_CONCURRENT_CONNECTIONS;
 use log::*;
+use managers::Bms;
+use managers::Emg;
+use managers::Maestro;
 use managers::ManagerChannelData;
 use prost::Message;
 use streaming::Connection;
@@ -32,9 +35,6 @@ use tokio::sync::Semaphore;
 
 use crate::_dispatch_task as dispatch_task;
 use crate::_init_resource_managers as init_resource_managers;
-use crate::managers::Bms;
-use crate::managers::Emg;
-use crate::managers::Maestro;
 use crate::managers::Manager;
 use crate::managers::ResourceManager;
 
@@ -55,8 +55,8 @@ async fn main() {
 // channels to each manager
 async fn init_resource_managers() -> ManagerChannelMap {
     init_resource_managers! {
-        Component::Bms => Manager::BmsManager(Bms::new()),
-        Component::Emg => Manager::EmgManager(Emg::new()),
-        Component::Maestro => Manager::MaestroManager(Maestro::new())
+        Component::Bms => Manager::<Bms>::new(),
+        Component::Emg => Manager::<Emg>::new(),
+        Component::Maestro => Manager::<Maestro>::new()
     }
 }

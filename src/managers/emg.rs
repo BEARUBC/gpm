@@ -6,7 +6,9 @@ use tokio::sync::mpsc::channel;
 use tokio::sync::mpsc::Receiver;
 use tokio::sync::mpsc::Sender;
 
+use super::Manager;
 use super::ManagerChannelData;
+use super::Resource;
 use super::ResourceManager;
 use super::Responder;
 use super::MAX_MPSC_CHANNEL_BUFFER;
@@ -19,19 +21,10 @@ pub type ChannelData = (EmgMessage, Responder<std::string::String>);
 
 type EmgMessage = (Task, Option<TaskData>);
 
-pub struct Emg {
-    pub tx: Sender<ManagerChannelData>,
-    pub rx: Receiver<ManagerChannelData>,
-}
+pub struct Emg {}
+impl Resource for Emg {}
 
-impl Emg {
-    pub fn new() -> Self {
-        let (tx, mut rx) = channel(MAX_MPSC_CHANNEL_BUFFER);
-        Emg { tx, rx }
-    }
-}
-
-impl ResourceManager for Emg {
+impl ResourceManager for Manager<Emg> {
     fn init(&self) -> Result<()> {
         info!("Successfully initialized");
         Ok(()) // stub

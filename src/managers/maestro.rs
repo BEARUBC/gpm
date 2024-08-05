@@ -18,7 +18,9 @@ use tokio::sync::mpsc::channel;
 use tokio::sync::mpsc::Receiver;
 use tokio::sync::mpsc::Sender;
 
+use super::Manager;
 use super::ManagerChannelData;
+use super::Resource;
 use super::ResourceManager;
 use super::Responder;
 use super::MAX_MPSC_CHANNEL_BUFFER;
@@ -32,32 +34,28 @@ pub type ChannelData = (MaestroMessage, Responder<std::string::String>);
 
 type MaestroMessage = (Task, Option<TaskData>);
 
-pub struct Maestro {
-    pub tx: Sender<ManagerChannelData>,
-    pub rx: Receiver<ManagerChannelData>,
-    #[cfg(feature = "pi")]
-    controller: Maestro,
-}
+pub struct Maestro {}
+impl Resource for Maestro {}
 
-impl Maestro {
-    pub fn new() -> Self {
-        let (tx, mut rx) = channel(MAX_MPSC_CHANNEL_BUFFER);
-        #[cfg(feature = "pi")]
-        let mut controller: Maestro = Builder::default()
-            .baudrate(Baudrate::Baudrate11520)
-            .block_duration(Duration::from_millis(100))
-            .try_into()
-            .unwrap();
-        Maestro {
-            tx,
-            rx,
-            #[cfg(feature = "pi")]
-            controller,
-        }
-    }
-}
+// impl Maestro {
+//     pub fn new() -> Self {
+//         let (tx, mut rx) = channel(MAX_MPSC_CHANNEL_BUFFER);
+//         #[cfg(feature = "pi")]
+//         let mut controller: Maestro = Builder::default()
+//             .baudrate(Baudrate::Baudrate11520)
+//             .block_duration(Duration::from_millis(100))
+//             .try_into()
+//             .unwrap();
+//         Maestro {
+//             tx,
+//             rx,
+//             #[cfg(feature = "pi")]
+//             controller,
+//         }
+//     }
+// }
 
-impl ResourceManager for Maestro {
+impl ResourceManager for Manager<Maestro> {
     fn init(&self) -> Result<()> {
         info!("Successfully initialized");
         Ok(())

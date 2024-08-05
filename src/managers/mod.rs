@@ -6,6 +6,8 @@ use anyhow::Result;
 pub use bms::Bms;
 pub use emg::Emg;
 pub use maestro::Maestro;
+use tokio::sync::mpsc::channel;
+use tokio::sync::mpsc::Receiver;
 use tokio::sync::mpsc::Sender;
 
 use crate::async_match_managers;
@@ -23,33 +25,30 @@ pub trait ResourceManager {
     fn handle_task(&self, task_data: ManagerChannelData) -> Result<()>;
 }
 
-pub enum Manager {
-    BmsManager(Bms),
-    EmgManager(Emg),
-    MaestroManager(Maestro),
+pub struct Manager<S: Resource> {
+    pub tx: Sender<ManagerChannelData>,
+    pub rx: Receiver<ManagerChannelData>,
+    // This reassures the compiler that type S
+    // is used
+    marker: std::marker::PhantomData<S>,
 }
+
+impl<S: Resource> Manager<S> {
+    pub fn new() -> Self {
+        let (tx, mut rx) = channel(MAX_MPSC_CHANNEL_BUFFER);
+        Manager::<S> {
+            tx,
+            rx,
+            marker: std::marker::PhantomData::<S>,
+        }
+    }
+}
+
+pub trait Resource {}
 
 #[derive(Debug)]
 pub enum ManagerChannelData {
     BmsChannelData(bms::ChannelData),
     EmgChannelData(emg::ChannelData),
     MaestroChannelData(maestro::ChannelData),
-}
-
-impl ResourceManager for Manager {
-    fn init(&self) -> Result<()> {
-        match_managers!(self, init)
-    }
-
-    fn tx(&self) -> Sender<ManagerChannelData> {
-        match_managers!(self, tx)
-    }
-
-    fn handle_task(&self, task_data: ManagerChannelData) -> Result<()> {
-        match_managers!(self, handle_task, task_data)
-    }
-
-    async fn run(&mut self) {
-        async_match_managers!(self, run)
-    }
 }
