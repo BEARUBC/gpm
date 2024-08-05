@@ -10,8 +10,7 @@ use tokio::sync::mpsc::channel;
 use tokio::sync::mpsc::Receiver;
 use tokio::sync::mpsc::Sender;
 
-use crate::async_match_managers;
-use crate::match_managers;
+use crate::request::TaskData;
 
 // Represents the response data type from a task manager
 type Responder<T> = tokio::sync::oneshot::Sender<T>;
@@ -47,8 +46,8 @@ impl<S: Resource> Manager<S> {
 pub trait Resource {}
 
 #[derive(Debug)]
-pub enum ManagerChannelData {
-    BmsChannelData(bms::ChannelData),
-    EmgChannelData(emg::ChannelData),
-    MaestroChannelData(maestro::ChannelData),
+pub struct ManagerChannelData {
+    pub task_code: String,
+    pub task_data: Option<TaskData>,
+    pub resp_tx: Responder<String>
 }

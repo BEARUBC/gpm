@@ -65,11 +65,11 @@ impl ResourceManager for Manager<Maestro> {
         self.tx.clone()
     }
 
-    fn handle_task(&self, task_data: ManagerChannelData) -> Result<()> {
-        let data = verify_channel_data!(task_data, ManagerChannelData::MaestroChannelData)?;
-        let task = data.0 .0;
-        let task_data = data.0 .1;
-        let send_channel = data.1;
+    fn handle_task(&self, rcvd: ManagerChannelData) -> Result<()> {
+        let data = verify_channel_data!(rcvd, Task, crate::request::TaskData::MaestroData).unwrap();
+        let task = data.0;
+        let task_data = data.1;
+        let send_channel = rcvd.resp_tx;
         let res = match task {
             Task::UndefinedTask => {
                 warn!("Encountered an undefined task type");

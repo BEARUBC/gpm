@@ -20,42 +20,6 @@ macro_rules! _init_resource_managers {
 }
 
 #[macro_export]
-macro_rules! match_managers {
-    ($id:ident, $method:ident) => {
-        match $id {
-            Manager::BmsManager(bms) => bms.$method(),
-            Manager::EmgManager(emg) => emg.$method(),
-            Manager::MaestroManager(maestro) => maestro.$method(),
-        }
-    };
-    ($id:ident, $method:ident, $($arg:ident),*) => {
-        match $id {
-            Manager::BmsManager(bms) => bms.$method($($arg),*),
-            Manager::EmgManager(emg) => emg.$method($($arg),*),
-            Manager::MaestroManager(maestro) => maestro.$method($($arg),*),
-        }
-    }
-}
-
-#[macro_export]
-macro_rules! async_match_managers {
-    ($id:ident, $method:ident) => {
-        match $id {
-            Manager::BmsManager(bms) => bms.$method().await,
-            Manager::EmgManager(emg) => emg.$method().await,
-            Manager::MaestroManager(maestro) => maestro.$method().await,
-        }
-    };
-    ($id:ident, $method:ident, $($arg:ident),*) => {
-        match $id {
-            Manager::BmsManager(bms) => bms.$method($($arg),*).await,
-            Manager::EmgManager(emg) => emg.$method($($arg),*).await,
-            Manager::MaestroManager(maestro) => maestro.$method($($arg),*).await,
-        }
-    }
-}
-
-#[macro_export]
 macro_rules! run_task {
     ($id:ident, $handler:ident) => {
         info!("Listening for messages");
@@ -70,15 +34,18 @@ macro_rules! run_task {
 
 #[macro_export]
 macro_rules! verify_channel_data {
-    ($data:ident, $channel_data:path) => {
-        match $data {
-            $channel_data($data) => {
-                info!("Recieved task={:?}", $data.0);
-                Ok($data)
-            },
-            _ => Err(Error::msg(
-                "Mismatched channel data type; Expected={$channel_data} Received={$data}",
-            )),
-        }
-    };
+    ($data:ident, $task_type:path, $task_data:path) => {{
+        let task = <$task_type>::from_str_name($data.task_code.as_str()).ok_or(Error::msg("Invalid task")).unwrap();
+        let task_data = match $data.task_data {
+            Some(data) => match data {
+                $task_data(data) => Some(data),
+                _ => {
+                    warn!("Mismatched task data type");
+                    None
+                }
+            }
+            None => None
+        };
+        Some((task, task_data))
+    }};
 }

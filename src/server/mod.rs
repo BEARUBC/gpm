@@ -5,16 +5,17 @@ use anyhow::Result;
 use log::error;
 use log::info;
 use log::warn;
+use paste::paste;
 use request::TaskData::*;
 use tokio::net::TcpListener;
 use tokio::net::TcpStream;
 use tokio::sync::oneshot;
 use tokio::sync::Semaphore;
-use ManagerChannelData::*;
 
 use crate::config::GPM_TCP_ADDR;
 use crate::config::MAX_CONCURRENT_CONNECTIONS;
 use crate::retry;
+use crate::verify_task_data;
 use crate::ManagerChannelMap;
 use crate::_dispatch_task as dispatch_task;
 use crate::import_sgcp;
@@ -91,14 +92,12 @@ async fn handle_connection(mut stream: TcpStream, map: &ManagerChannelMap) -> Re
 }
 
 /// Dispatches a sgcp::Request to the appropiate task manager
-/// TODO: @krarpit clean up this macro, seems messy to have to pass in these rather
-/// arbitrary structs
 pub async fn dispatch_task(request: Request, map: &ManagerChannelMap) -> Result<String> {
-    dispatch_task! {
-        request,
-        map,
-        Component::Bms => (bms::Task, BmsData, BmsChannelData),
-        Component::Emg => (emg::Task, EmgData, EmgChannelData),
-        Component::Maestro => (maestro::Task, MaestroData, MaestroChannelData)
-    }
+    dispatch_task!(
+        request, 
+        map, 
+        Component::Bms, // map each component with the channel in `map`
+        Component::Emg,
+        Component::Maestro
+    )
 }

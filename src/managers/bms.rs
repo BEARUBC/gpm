@@ -1,3 +1,4 @@
+use core::task;
 // All tasks operating on the BMS system live in this file.
 use std::path::Component;
 
@@ -35,11 +36,11 @@ impl ResourceManager for Manager<Bms> {
         self.tx.clone()
     }
 
-    fn handle_task(&self, task_data: ManagerChannelData) -> Result<()> {
-        let data = verify_channel_data!(task_data, ManagerChannelData::BmsChannelData)?;
-        let task = data.0 .0;
-        let task_data = data.0 .1;
-        let send_channel = data.1;
+    fn handle_task(&self, rcvd: ManagerChannelData) -> Result<()> {
+        let data = verify_channel_data!(rcvd, Task, crate::request::TaskData::BmsData).unwrap();
+        let task = data.0;
+        let task_data = data.1;
+        let send_channel = rcvd.resp_tx;
         match task {
             Task::UndefinedTask => todo!(),
             Task::GetHealthMetrics => todo!(),

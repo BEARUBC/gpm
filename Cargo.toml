@@ -11,6 +11,7 @@ anyhow = "1.0"
 bytes = "1"
 psutil = "3.3"
 raestro = { version = "0.5.0", optional = true }
+paste = "1.0"
 prost = "0.12"
 prost-types = "0.12"
 chrono = { version = "0.4.38", features = ["serde"] }

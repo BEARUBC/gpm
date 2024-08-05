@@ -1,12 +1,31 @@
 #[macro_export]
+macro_rules! verify_task_data {
+    ($rcvd:expr, $expected:path, $component:expr) => {
+        match $rcvd {
+            Some(data) => match data {
+                $expected(data) => Some(data),
+                _ => {
+                    warn!(
+                        "Mismatched task data type for task; Expected={:?} Recieved={:?}",
+                        $component, data
+                    );
+                    None
+                },
+            },
+            _ => None,
+        };
+    };
+}
+
+#[macro_export]
 macro_rules! _dispatch_task {
     {
         $request:ident,
         $map:ident,
         $(
-            $variant:pat => ($task_type:ty,$task_data:path,$channel_data:path)
+            $variant:pat
         ),*
-    } => {
+    } => {{
         let component_key = $request.component().as_str_name();
         match $request.component() {
             $($variant => {
@@ -15,20 +34,11 @@ macro_rules! _dispatch_task {
                     Some(tx) => {
                         // Set up channel on which manager will send its response
                         let (resp_tx, resp_rx) = oneshot::channel::<String>();
-                        let task = <$task_type>::from_str_name($request.task_code.as_str()).ok_or(Error::msg("Invalid task type"))?;
-                        // We should only parse the task data if it is for the correct task type
-                        // i.e we should warn if the user sends Emg task data for a Bms task
-                        let task_data = match $request.task_data {
-                            Some(data) => match data {
-                                $task_data(data) => Some(data),
-                                _ => {
-                                    warn!("Received task of type={:?} but task data for another task type; data={:?}", component_key, data);
-                                    None
-                                }
-                            },
-                            _ => None
-                        };
-                        tx.send($channel_data(((task, task_data), resp_tx))).await.unwrap();
+                        tx.send(ManagerChannelData {
+                            task_code: $request.task_code.as_str().to_string(),
+                            task_data: $request.task_data, 
+                            resp_tx 
+                        }).await.unwrap();
                         let res = resp_rx.await.unwrap();
                         info!("{:?} task returned value={:?}", component_key, res);
                         Ok(res)
@@ -42,5 +52,5 @@ macro_rules! _dispatch_task {
                 Err(Error::msg("Unmatched task"))
             }
         }
-    }
+    }}
 }
