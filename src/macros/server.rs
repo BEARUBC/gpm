@@ -21,16 +21,15 @@ macro_rules! verify_task_data {
 macro_rules! _dispatch_task {
     {
         $request:ident,
-        $map:ident,
         $(
-            $variant:pat
+            $variant:pat => $channel:expr
         ),*
     } => {{
         let component_key = $request.component().as_str_name();
         match $request.component() {
             $($variant => {
                 info!("Dispatching {:?} task with task_code={:?}", component_key, $request.task_code);
-                match $map.get($request.component().as_str_name()) {
+                match $channel {
                     Some(tx) => {
                         // Set up channel on which manager will send its response
                         let (resp_tx, resp_rx) = oneshot::channel::<String>();

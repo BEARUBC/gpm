@@ -66,7 +66,8 @@ impl ResourceManager for Manager<Maestro> {
     }
 
     fn handle_task(&self, rcvd: ManagerChannelData) -> Result<()> {
-        let data = verify_channel_data!(rcvd, Task, crate::request::TaskData::MaestroData).unwrap();
+        let _data: Result<(Task, Option<TaskData>), Error> = verify_channel_data!(rcvd, Task, crate::request::TaskData::MaestroData);
+        let data = _data?;
         let task = data.0;
         let task_data = data.1;
         let send_channel = rcvd.resp_tx;

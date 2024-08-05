@@ -94,10 +94,9 @@ async fn handle_connection(mut stream: TcpStream, map: &ManagerChannelMap) -> Re
 /// Dispatches a sgcp::Request to the appropiate task manager
 pub async fn dispatch_task(request: Request, map: &ManagerChannelMap) -> Result<String> {
     dispatch_task!(
-        request, 
-        map, 
-        Component::Bms, // map each component with the channel in `map`
-        Component::Emg,
-        Component::Maestro
+        request,         
+        Component::Bms => map.get(request.component().as_str_name()),
+        Component::Emg => map.get(request.component().as_str_name()),
+        Component::Maestro => map.get(request.component().as_str_name())
     )
 }
