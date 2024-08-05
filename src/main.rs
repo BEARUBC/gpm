@@ -40,7 +40,6 @@ use crate::managers::ResourceManager;
 
 type ManagerChannelMap = HashMap<String, Sender<ManagerChannelData>>;
 
-// Import protobuf generated code to handle de/serialization
 import_sgcp!();
 
 #[tokio::main]
@@ -55,8 +54,8 @@ async fn main() {
 // channels to each manager
 async fn init_resource_managers() -> ManagerChannelMap {
     init_resource_managers! {
-        Component::Bms => Manager::<Bms>::new(),
-        Component::Emg => Manager::<Emg>::new(),
-        Component::Maestro => Manager::<Maestro>::new()
+        Resource::Bms => Manager::<Bms>::new(),
+        Resource::Emg => Manager::<Emg>::new(),
+        Resource::Maestro => Manager::<Maestro>::new()
     }
 }

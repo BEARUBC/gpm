@@ -25,8 +25,8 @@ macro_rules! _dispatch_task {
             $variant:pat => $channel:expr
         ),*
     } => {{
-        let component_key = $request.component().as_str_name();
-        match $request.component() {
+        let component_key = $request.resource().as_str_name();
+        match $request.resource() {
             $($variant => {
                 info!("Dispatching {:?} task with task_code={:?}", component_key, $request.task_code);
                 match $channel {
@@ -35,8 +35,8 @@ macro_rules! _dispatch_task {
                         let (resp_tx, resp_rx) = oneshot::channel::<String>();
                         tx.send(ManagerChannelData {
                             task_code: $request.task_code.as_str().to_string(),
-                            task_data: $request.task_data, 
-                            resp_tx 
+                            task_data: $request.task_data,
+                            resp_tx
                         }).await.unwrap();
                         let res = resp_rx.await.unwrap();
                         info!("{:?} task returned value={:?}", component_key, res);

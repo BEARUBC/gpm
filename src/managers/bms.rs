@@ -37,7 +37,8 @@ impl ResourceManager for Manager<Bms> {
     }
 
     fn handle_task(&self, rcvd: ManagerChannelData) -> Result<()> {
-        let _data: Result<(Task, Option<TaskData>), Error> = verify_channel_data!(rcvd, Task, crate::request::TaskData::BmsData);
+        let _data: Result<(Task, Option<TaskData>), Error> =
+            verify_channel_data!(rcvd, Task, crate::request::TaskData::BmsData);
         let data = _data?;
         let task = data.0;
         let task_data = data.1;

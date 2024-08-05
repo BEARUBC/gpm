@@ -49,5 +49,5 @@ pub trait Resource {}
 pub struct ManagerChannelData {
     pub task_code: String,
     pub task_data: Option<TaskData>,
-    pub resp_tx: Responder<String>
+    pub resp_tx: Responder<String>,
 }
