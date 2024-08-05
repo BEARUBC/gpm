@@ -23,7 +23,7 @@ const GRASP_ASCII: &str = r"
                     /_/      ";
 const VERSION_LINE: &str = "Version 0.0.1";
 const BYLINE: &str = "Developed at UBC Bionics";
-const NEW_LINE: &str = "/n";
+const NEW_LINE: &str = "\n";
 
 // Initializes env_logger and prints metadata
 pub fn init() {
@@ -33,4 +33,5 @@ pub fn init() {
     println!("{}", NEW_LINE);
     println!("{}", VERSION_LINE);
     println!("{}", BYLINE);
+    println!("{}", NEW_LINE);
 }
