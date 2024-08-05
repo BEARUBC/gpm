@@ -12,7 +12,7 @@ use tokio::sync::mpsc::Sender;
 
 use crate::request::TaskData;
 
-// Represents the response data type from a task manager
+/// Type of the channel used by a resource manager to return the task response
 type Responder<T> = tokio::sync::oneshot::Sender<T>;
 
 const MAX_MPSC_CHANNEL_BUFFER: usize = 32;

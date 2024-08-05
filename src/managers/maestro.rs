@@ -30,10 +30,6 @@ use crate::sgcp::maestro::*;
 use crate::todo;
 use crate::verify_channel_data;
 
-pub type ChannelData = (MaestroMessage, Responder<std::string::String>);
-
-type MaestroMessage = (Task, Option<TaskData>);
-
 pub struct Maestro {}
 impl Resource for Maestro {}
 

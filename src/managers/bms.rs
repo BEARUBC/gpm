@@ -1,6 +1,6 @@
 use core::task;
-// All tasks operating on the BMS system live in this file.
 
+// All tasks operating on the BMS system live in this file.
 use anyhow::Error;
 use anyhow::Result;
 use log::*;
@@ -18,9 +18,6 @@ use crate::run_task;
 use crate::sgcp::bms::*;
 use crate::todo;
 use crate::verify_channel_data;
-
-type BmsMessage = (Task, Option<TaskData>);
-pub type ChannelData = (BmsMessage, Responder<std::string::String>);
 
 pub struct Bms {}
 impl Resource for Bms {}

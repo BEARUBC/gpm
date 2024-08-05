@@ -1,22 +1,5 @@
-#[macro_export]
-macro_rules! verify_task_data {
-    ($rcvd:expr, $expected:path, $resource:expr) => {
-        match $rcvd {
-            Some(data) => match data {
-                $expected(data) => Some(data),
-                _ => {
-                    warn!(
-                        "Mismatched task data type for task; Expected={:?} Recieved={:?}",
-                        $resource, data
-                    );
-                    None
-                },
-            },
-            _ => None,
-        };
-    };
-}
-
+// Provides the boilerplate to setup routing required to send tasks to the appropriate
+// resource manager
 #[macro_export]
 macro_rules! _dispatch_task {
     {

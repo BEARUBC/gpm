@@ -5,7 +5,6 @@ use anyhow::Result;
 use log::error;
 use log::info;
 use log::warn;
-use paste::paste;
 use request::TaskData::*;
 use tokio::net::TcpListener;
 use tokio::net::TcpStream;
@@ -15,7 +14,6 @@ use tokio::sync::Semaphore;
 use crate::config::GPM_TCP_ADDR;
 use crate::config::MAX_CONCURRENT_CONNECTIONS;
 use crate::retry;
-use crate::verify_task_data;
 use crate::ManagerChannelMap;
 use crate::_dispatch_task as dispatch_task;
 use crate::import_sgcp;
@@ -23,6 +21,8 @@ use crate::managers::ManagerChannelData;
 use crate::sgcp::*;
 use crate::streaming::Connection;
 
+// Starts the main TCP listener loop -- can handle at most MAX_CONCURRENT_CONNECTION connections at
+// any given time
 pub async fn init_gpm_listener(manager_channel_map: ManagerChannelMap) {
     let listener = TcpListener::bind(GPM_TCP_ADDR).await.unwrap();
     let sem = Arc::new(Semaphore::new(MAX_CONCURRENT_CONNECTIONS));
@@ -39,6 +39,8 @@ pub async fn init_gpm_listener(manager_channel_map: ManagerChannelMap) {
                 continue;
             },
         };
+        // Stores a mapping between the manager tasks and the Sender channel needed to communicate
+        // with them
         let send_channel_map = manager_channel_map.clone();
         tokio::spawn(async move {
             // Bounds number of concurrent connections
@@ -53,13 +55,14 @@ pub async fn init_gpm_listener(manager_channel_map: ManagerChannelMap) {
 }
 
 /// Reads protobufs from the underlying stream and dispatches tasks to the appropriate
-/// task manager.
+/// resource manager
 async fn handle_connection(mut stream: TcpStream, map: &ManagerChannelMap) -> Result<()> {
     let mut conn = Connection::new(stream);
     loop {
         match conn.read_frame().await {
             Ok(val) => match val {
                 Some(req) => {
+                    // Successfully read a frame
                     info!("Recieved request: {:?}", req);
                     let res = match dispatch_task(req, &map).await {
                         Ok(res) => res,
@@ -78,6 +81,7 @@ async fn handle_connection(mut stream: TcpStream, map: &ManagerChannelMap) -> Re
                     };
                 },
                 None => {
+                    // Connection was closed cleanly
                     info!("Connection closed with peer");
                     break;
                 },
@@ -91,12 +95,12 @@ async fn handle_connection(mut stream: TcpStream, map: &ManagerChannelMap) -> Re
     Ok(())
 }
 
-/// Dispatches a sgcp::Request to the appropiate task manager
+/// Dispatches a request to the appropiate resource manager. Returns the response from the task.
 pub async fn dispatch_task(request: Request, map: &ManagerChannelMap) -> Result<String> {
     dispatch_task!(
         request,
-        Resource::Bms => map.get(request.resource().as_str_name()),
-        Resource::Emg => map.get(request.resource().as_str_name()),
-        Resource::Maestro => map.get(request.resource().as_str_name())
+        Resource::Bms => map.get(Resource::Bms.as_str_name()),
+        Resource::Emg => map.get(Resource::Emg.as_str_name()),
+        Resource::Maestro => map.get(Resource::Maestro.as_str_name())
     )
 }

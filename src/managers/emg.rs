@@ -17,10 +17,6 @@ use crate::sgcp::emg::*;
 use crate::todo;
 use crate::verify_channel_data;
 
-pub type ChannelData = (EmgMessage, Responder<std::string::String>);
-
-type EmgMessage = (Task, Option<TaskData>);
-
 pub struct Emg {}
 impl Resource for Emg {}
 

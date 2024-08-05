@@ -1,3 +1,4 @@
+// Provides boilerplate to initialize a resource manager and run it in its own (green) thread
 #[macro_export]
 macro_rules! _init_resource_managers {
     {
@@ -5,8 +6,6 @@ macro_rules! _init_resource_managers {
             $resource:expr => $variant:expr
         ),*
     } => {
-        // This map will hold the mappings between task managers and their tx component of their mpsc
-        // channels
         let mut map = HashMap::new();
         $(
             let mut manager = $variant;
@@ -19,6 +18,7 @@ macro_rules! _init_resource_managers {
     };
 }
 
+// Provides boilerplate for the main task listener loop for a resource manager
 #[macro_export]
 macro_rules! run_task {
     ($id:ident, $handler:ident) => {
@@ -32,6 +32,8 @@ macro_rules! run_task {
     };
 }
 
+// Provides boilerplate to verify that the correct type of task and task data is
+// received by a resource manager
 #[macro_export]
 macro_rules! verify_channel_data {
     ($data:ident, $task_type:path, $task_data:path) => {{

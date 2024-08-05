@@ -1,6 +1,7 @@
 mod managers;
 mod server;
 
+// Imports the protobuf generated code to enable de/serialization
 #[macro_export]
 macro_rules! import_sgcp {
     () => {
@@ -20,6 +21,7 @@ macro_rules! import_sgcp {
     };
 }
 
+// Simple wrapper to allow retrying on failures
 #[macro_export]
 macro_rules! retry {
     ($f:expr, $count:expr, $interval:expr) => {{
@@ -42,6 +44,7 @@ macro_rules! retry {
     };
 }
 
+// todo! without panicking
 #[macro_export]
 macro_rules! todo {
     () => {
@@ -49,9 +52,12 @@ macro_rules! todo {
     };
 }
 
+// Certain methods are only run when GPM is in the Raspberry Pi environment (for eg. GPIO access).
+// This macro must be used to log whenever some task is skipped when running GPM outside
+// the Pi.
 #[macro_export]
 macro_rules! not_on_pi {
     () => {
-        warn!("Not running on the Raspberry Pi, assume success")
+        warn!("Not running on the Raspberry Pi -- skipping task")
     };
 }
