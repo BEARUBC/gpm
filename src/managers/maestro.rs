@@ -25,6 +25,7 @@ use super::ResourceManager;
 use super::Responder;
 use super::MAX_MPSC_CHANNEL_BUFFER;
 use crate::not_on_pi;
+use crate::request::TaskData::MaestroData;
 use crate::run_task;
 use crate::sgcp::maestro::*;
 use crate::todo;
@@ -63,7 +64,7 @@ impl ResourceManager for Manager<Maestro> {
 
     fn handle_task(&self, rcvd: ManagerChannelData) -> Result<()> {
         let _data: Result<(Task, Option<TaskData>), Error> =
-            verify_channel_data!(rcvd, Task, crate::request::TaskData::MaestroData);
+            verify_channel_data!(rcvd, Task, MaestroData);
         let data = _data?;
         let task = data.0;
         let task_data = data.1;

@@ -14,6 +14,7 @@ use super::Resource;
 use super::ResourceManager;
 use super::Responder;
 use super::MAX_MPSC_CHANNEL_BUFFER;
+use crate::request::TaskData::BmsData;
 use crate::run_task;
 use crate::sgcp::bms::*;
 use crate::todo;
@@ -34,7 +35,7 @@ impl ResourceManager for Manager<Bms> {
 
     fn handle_task(&self, rcvd: ManagerChannelData) -> Result<()> {
         let _data: Result<(Task, Option<TaskData>), Error> =
-            verify_channel_data!(rcvd, Task, crate::request::TaskData::BmsData);
+            verify_channel_data!(rcvd, Task, BmsData);
         let data = _data?;
         let task = data.0;
         let task_data = data.1;

@@ -42,10 +42,7 @@ macro_rules! verify_channel_data {
         let task_data = match $data.task_data {
             Some(data) => match data {
                 $task_data(data) => Ok(Some(data)),
-                _ => {
-                    error!("Mismatched task data type");
-                    Err(Error::msg("Mismatch task data type"))
-                },
+                _ => Err(Error::msg("Mismatch task data type")),
             },
             None => Ok(None),
         }?;
