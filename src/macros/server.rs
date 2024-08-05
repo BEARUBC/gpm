@@ -1,13 +1,13 @@
 #[macro_export]
 macro_rules! verify_task_data {
-    ($rcvd:expr, $expected:path, $component:expr) => {
+    ($rcvd:expr, $expected:path, $resource:expr) => {
         match $rcvd {
             Some(data) => match data {
                 $expected(data) => Some(data),
                 _ => {
                     warn!(
                         "Mismatched task data type for task; Expected={:?} Recieved={:?}",
-                        $component, data
+                        $resource, data
                     );
                     None
                 },
@@ -25,10 +25,10 @@ macro_rules! _dispatch_task {
             $variant:pat => $channel:expr
         ),*
     } => {{
-        let component_key = $request.resource().as_str_name();
+        let resource_key = $request.resource().as_str_name();
         match $request.resource() {
             $($variant => {
-                info!("Dispatching {:?} task with task_code={:?}", component_key, $request.task_code);
+                info!("Dispatching {:?} task with task_code={:?}", resource_key, $request.task_code);
                 match $channel {
                     Some(tx) => {
                         // Set up channel on which manager will send its response
@@ -39,11 +39,11 @@ macro_rules! _dispatch_task {
                             resp_tx
                         }).await.unwrap();
                         let res = resp_rx.await.unwrap();
-                        info!("{:?} task returned value={:?}", component_key, res);
+                        info!("{:?} task returned value={:?}", resource_key, res);
                         Ok(res)
                     },
                     None => {
-                        Err(Error::msg("{component_key} resource manager not initialized"))
+                        Err(Error::msg("{resource_key} resource manager not initialized"))
                     }
                 }
             }),*,

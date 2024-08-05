@@ -2,7 +2,7 @@
 macro_rules! _init_resource_managers {
     {
         $(
-            $component:expr => $variant:expr
+            $resource:expr => $variant:expr
         ),*
     } => {
         // This map will hold the mappings between task managers and their tx component of their mpsc
@@ -10,9 +10,9 @@ macro_rules! _init_resource_managers {
         let mut map = HashMap::new();
         $(
             let mut manager = $variant;
-            info!("Initializing resource_manager_task={:?}", $component.as_str_name());
+            info!("Initializing resource_manager_task={:?}", $resource.as_str_name());
             manager.init().unwrap();
-            map.insert($component.as_str_name().to_string(), manager.tx());
+            map.insert($resource.as_str_name().to_string(), manager.tx());
             tokio::spawn(async move { manager.run().await; });
         )*
         map
