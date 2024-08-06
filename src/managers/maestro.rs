@@ -21,14 +21,13 @@ use tokio::sync::mpsc::Sender;
 use super::Manager;
 use super::ManagerChannelData;
 use super::Resource;
-use super::ResourceManager;
 use super::Responder;
 use super::MAX_MPSC_CHANNEL_BUFFER;
 use crate::managers::TASK_SUCCESS;
 use crate::managers::UNDEFINED_TASK;
 use crate::not_on_pi;
+use crate::parse_channel_data;
 use crate::request::TaskData::MaestroData;
-use crate::run_task;
 use crate::sgcp::maestro::*;
 use crate::todo;
 use crate::verify_channel_data;
@@ -55,17 +54,11 @@ impl Resource for Maestro {
     }
 }
 
-impl ResourceManager for Manager<Maestro> {
-    fn tx(&self) -> Sender<ManagerChannelData> {
-        self.tx.clone()
-    }
-
+impl Manager<Maestro> {
     /// Handles all Maestro-related tasks
     fn handle_task(&self, rcvd: ManagerChannelData) -> Result<()> {
-        let data = verify_channel_data!(rcvd, Task, MaestroData).map_err(|err: Error| err)?;
-        let task = data.0;
-        let task_data = data.1;
-        let send_channel = rcvd.resp_tx;
+        let (task, task_data, send_channel) =
+            parse_channel_data!(rcvd, Task, MaestroData).map_err(|e: Error| e)?;
         let res = match task {
             Task::UndefinedTask => {
                 warn!("Encountered an undefined task type");
@@ -120,9 +113,5 @@ impl ResourceManager for Manager<Maestro> {
         };
         send_channel.send(res);
         Ok(())
-    }
-
-    async fn run(&mut self) {
-        run_task!(self, handle_task);
     }
 }

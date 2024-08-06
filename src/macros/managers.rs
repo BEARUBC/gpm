@@ -17,20 +17,6 @@ macro_rules! _init_resource_managers {
     };
 }
 
-/// Provides boilerplate for the main task listener loop for a resource manager
-#[macro_export]
-macro_rules! run_task {
-    ($id:ident, $handler:ident) => {
-        info!("Listening for messages");
-        while let Some(data) = $id.rx.recv().await {
-            match $id.$handler(data) {
-                Err(err) => error!("Handling task failed with error={:?}", err),
-                _ => (),
-            };
-        }
-    };
-}
-
 /// Provides boilerplate to verify that the correct type of task and task data is
 /// received by a resource manager
 #[macro_export]
@@ -46,5 +32,15 @@ macro_rules! verify_channel_data {
             None => Ok(None),
         }?;
         Ok((task, task_data))
+    }};
+}
+
+/// Provides boilerplate to parse task information needed by resource managers to
+/// proccess tasks
+#[macro_export]
+macro_rules! parse_channel_data {
+    ($id:ident, $task:ty, $task_data:ty) => {{
+        let data = verify_channel_data!($id, $task, $task_data).map_err(|e: Error| e)?;
+        Ok((data.0, data.1, $id.resp_tx))
     }};
 }
