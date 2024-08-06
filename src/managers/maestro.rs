@@ -56,9 +56,9 @@ impl Resource for Maestro {
 
 impl Manager<Maestro> {
     /// Handles all Maestro-related tasks
-    fn handle_task(&self, rcvd: ManagerChannelData) -> Result<()> {
+    fn handle_task(&self, channel_data: ManagerChannelData) -> Result<()> {
         let (task, task_data, send_channel) =
-            parse_channel_data!(rcvd, Task, MaestroData).map_err(|e: Error| e)?;
+            parse_channel_data!(channel_data, Task, MaestroData).map_err(|e: Error| e)?;
         let res = match task {
             Task::UndefinedTask => {
                 warn!("Encountered an undefined task type");

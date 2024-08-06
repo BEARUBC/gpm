@@ -73,7 +73,7 @@ impl<S: Resource> ResourceManager for Manager<S> {
     }
 
     /// Stubbed implementation, each resource must implement its own handle_task
-    fn handle_task(&self, data: ManagerChannelData) -> Result<()> {
+    fn handle_task(&self, channel_data: ManagerChannelData) -> Result<()> {
         Err(Error::msg("Missing implementation for handle task"))
     }
 }

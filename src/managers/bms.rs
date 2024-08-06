@@ -31,9 +31,9 @@ impl Resource for Bms {
 
 impl Manager<Bms> {
     /// Handles all BMS-related tasks
-    fn handle_task(&self, rcvd: ManagerChannelData) -> Result<()> {
+    fn handle_task(&self, channel_data: ManagerChannelData) -> Result<()> {
         let (task, task_data, send_channel) =
-            parse_channel_data!(rcvd, Task, BmsData).map_err(|e: Error| e)?;
+            parse_channel_data!(channel_data, Task, BmsData).map_err(|e: Error| e)?;
         match task {
             Task::UndefinedTask => todo!(),
             Task::GetHealthMetrics => todo!(),
