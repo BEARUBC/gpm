@@ -1,5 +1,3 @@
-use core::task;
-
 // All tasks operating on the BMS (Battery Management System) live in this file
 use anyhow::Error;
 use anyhow::Result;

@@ -25,7 +25,7 @@ const VERSION_LINE: &str = "Version 0.0.1";
 const BYLINE: &str = "Developed at UBC Bionics";
 const NEW_LINE: &str = "\n";
 
-// Initializes env_logger and prints metadata
+/// Initializes env_logger and prints metadata
 pub fn init() {
     set_var(RUST_LOG_KEY, LOG_LEVEL);
     env_logger::init();

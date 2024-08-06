@@ -32,6 +32,7 @@ pub trait ResourceManager {
     fn handle_task(&self, task_data: ManagerChannelData) -> Result<()>;
 }
 
+/// Represents a resource manager
 pub struct Manager<S: Resource> {
     pub tx: Sender<ManagerChannelData>,
     pub rx: Receiver<ManagerChannelData>,
