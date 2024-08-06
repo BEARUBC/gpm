@@ -25,9 +25,10 @@ use crate::config::READ_BUFFER_CAPACITY;
 use crate::request;
 use crate::Request;
 
+/// Represents a TCP connection
 pub struct Connection {
     stream: TcpStream,
-    // The buffer for reading protobuf "frames"
+    /// The buffer for reading protobuf "frames"
     buffer: BytesMut,
 }
 

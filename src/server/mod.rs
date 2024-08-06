@@ -21,8 +21,8 @@ use crate::managers::ManagerChannelData;
 use crate::sgcp::*;
 use crate::streaming::Connection;
 
-// Starts the main TCP listener loop -- can handle at most MAX_CONCURRENT_CONNECTION connections at
-// any given time
+/// Starts the main TCP listener loop -- can handle at most MAX_CONCURRENT_CONNECTIONS connections
+/// at any given time
 pub async fn init_gpm_listener(manager_channel_map: ManagerChannelMap) {
     let listener = TcpListener::bind(GPM_TCP_ADDR).await.unwrap();
     let sem = Arc::new(Semaphore::new(MAX_CONCURRENT_CONNECTIONS));
@@ -96,11 +96,14 @@ async fn handle_connection(mut stream: TcpStream, map: &ManagerChannelMap) -> Re
 }
 
 /// Dispatches a request to the appropiate resource manager. Returns the response from the task.
-pub async fn dispatch_task(request: Request, map: &ManagerChannelMap) -> Result<String> {
+pub async fn dispatch_task(
+    request: Request,
+    manager_channel_map: &ManagerChannelMap,
+) -> Result<String> {
     dispatch_task!(
         request,
-        Resource::Bms => map.get(Resource::Bms.as_str_name()),
-        Resource::Emg => map.get(Resource::Emg.as_str_name()),
-        Resource::Maestro => map.get(Resource::Maestro.as_str_name())
+        Resource::Bms => manager_channel_map.get(Resource::Bms.as_str_name()),
+        Resource::Emg => manager_channel_map.get(Resource::Emg.as_str_name()),
+        Resource::Maestro => manager_channel_map.get(Resource::Maestro.as_str_name())
     )
 }

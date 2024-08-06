@@ -1,6 +1,6 @@
 // This file contains a tiny http server which exposes system metrics
-// and health check endpoints. These are then scraped by the
-// Prometheus server running remotely.
+// and health check endpoints. These are then scraped by the Prometheus
+// server running remotely.
 use std::collections::HashMap;
 use std::convert::Infallible;
 use std::net::SocketAddr;
@@ -31,6 +31,8 @@ use crate::config::TELEMETRY_TCP_ADDR;
 use crate::config::TELEMETRY_TICK_INTERVAL_IN_SECONDS;
 use crate::retry;
 
+/// Starts the HTTP telemetry server -- can handle at most MAX_CONNCURRENT_CONNECTIONS connections
+/// at any given time
 pub async fn start_server() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let listener = TcpListener::bind(TELEMETRY_TCP_ADDR).await.unwrap();
     let sem = Arc::new(Semaphore::new(MAX_CONCURRENT_CONNECTIONS));

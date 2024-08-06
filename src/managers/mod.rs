@@ -12,24 +12,31 @@ use tokio::sync::mpsc::Sender;
 
 use crate::request::TaskData;
 
-/// Type of the channel used by a resource manager to return the task response
+/// Represents the channel used by a resource manager to return the task response
 type Responder<T> = tokio::sync::oneshot::Sender<T>;
 
+// General resource manager configs
 const MAX_MPSC_CHANNEL_BUFFER: usize = 32;
 
+// Resource manager return values
+const TASK_SUCCESS: &str = "Successfully ran task";
+const UNDEFINED_TASK: &str = "Undefined task, did you forget to initialize the message?";
+
 pub trait ResourceManager {
+    /// Starts the resource manager listener loop
     async fn run(&mut self);
-    fn init(&self) -> Result<()>;
+    /// Returns tx component of the resource manager's MPSC channel to
+    /// enable sending tasks
     fn tx(&self) -> Sender<ManagerChannelData>;
+    /// Handles every possible type of task for its resource
     fn handle_task(&self, task_data: ManagerChannelData) -> Result<()>;
 }
 
 pub struct Manager<S: Resource> {
     pub tx: Sender<ManagerChannelData>,
     pub rx: Receiver<ManagerChannelData>,
-    // This reassures the compiler that type S
-    // is used
-    marker: std::marker::PhantomData<S>,
+    /// Holds resource specific metadata
+    metadata: S,
 }
 
 impl<S: Resource> Manager<S> {
@@ -38,13 +45,19 @@ impl<S: Resource> Manager<S> {
         Manager::<S> {
             tx,
             rx,
-            marker: std::marker::PhantomData::<S>,
+            metadata: S::init(),
         }
     }
 }
 
-pub trait Resource {}
+pub trait Resource {
+    /// Initializes the resource
+    fn init() -> Self;
+}
 
+/// Represents the format of messages that will sent to each resource manager.
+/// Note that it is the resource manager's responsibility to perform necessary
+/// validation on the received data.
 #[derive(Debug)]
 pub struct ManagerChannelData {
     pub task_code: String,

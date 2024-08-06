@@ -1,4 +1,4 @@
-// All tasks operating on the Maestro servo controller live in this file.
+// All tasks operating on the Maestro servo controller live in this file
 use anyhow::Error;
 use anyhow::Result;
 use log::*;
@@ -24,6 +24,8 @@ use super::Resource;
 use super::ResourceManager;
 use super::Responder;
 use super::MAX_MPSC_CHANNEL_BUFFER;
+use crate::managers::TASK_SUCCESS;
+use crate::managers::UNDEFINED_TASK;
 use crate::not_on_pi;
 use crate::request::TaskData::MaestroData;
 use crate::run_task;
@@ -31,37 +33,34 @@ use crate::sgcp::maestro::*;
 use crate::todo;
 use crate::verify_channel_data;
 
-pub struct Maestro {}
-impl Resource for Maestro {}
+/// Represents a Maestro resource
+pub struct Maestro {
+    #[cfg(feature = "pi")]
+    controller: raestro::maestro::Maestro,
+}
 
-// impl Maestro {
-//     pub fn new() -> Self {
-//         let (tx, mut rx) = channel(MAX_MPSC_CHANNEL_BUFFER);
-//         #[cfg(feature = "pi")]
-//         let mut controller: Maestro = Builder::default()
-//             .baudrate(Baudrate::Baudrate11520)
-//             .block_duration(Duration::from_millis(100))
-//             .try_into()
-//             .unwrap();
-//         Maestro {
-//             tx,
-//             rx,
-//             #[cfg(feature = "pi")]
-//             controller,
-//         }
-//     }
-// }
+impl Resource for Maestro {
+    fn init() -> Self {
+        #[cfg(feature = "pi")]
+        {
+            let mut controller: raestro::maestro::Maestro = Builder::default()
+                .baudrate(Baudrate::Baudrate11520)
+                .block_duration(Duration::from_millis(100))
+                .try_into()
+                .unwrap();
+            Maestro { controller }
+        }
+        #[cfg(not(feature = "pi"))]
+        Maestro {}
+    }
+}
 
 impl ResourceManager for Manager<Maestro> {
-    fn init(&self) -> Result<()> {
-        info!("Successfully initialized");
-        Ok(())
-    }
-
     fn tx(&self) -> Sender<ManagerChannelData> {
         self.tx.clone()
     }
 
+    /// Handles all Maestro-related tasks
     fn handle_task(&self, rcvd: ManagerChannelData) -> Result<()> {
         let data = verify_channel_data!(rcvd, Task, MaestroData).map_err(|err: Error| err)?;
         let task = data.0;
@@ -70,34 +69,52 @@ impl ResourceManager for Manager<Maestro> {
         let res = match task {
             Task::UndefinedTask => {
                 warn!("Encountered an undefined task type");
-                "Undefined task, did you forget to initialize the message?".to_string()
+                UNDEFINED_TASK.to_string()
             },
             Task::OpenFist => {
                 #[cfg(not(feature = "pi"))]
                 {
                     not_on_pi!();
-                    "Successfully ran task!".to_string()
+                    TASK_SUCCESS.to_string()
                 }
                 #[cfg(feature = "pi")]
                 {
-                    maestro.set_target(Channel::Channel0, MIN_QTR_PWM).unwrap();
-                    maestro.set_target(Channel::Channel1, MIN_QTR_PWM).unwrap();
-                    maestro.set_target(Channel::Channel2, MIN_QTR_PWM).unwrap();
-                    "Successfully ran task!".to_string()
+                    self.metadata
+                        .controller
+                        .set_target(Channel::Channel0, MIN_QTR_PWM)
+                        .unwrap();
+                    self.metadata
+                        .controller
+                        .set_target(Channel::Channel1, MIN_QTR_PWM)
+                        .unwrap();
+                    self.metadata
+                        .controller
+                        .set_target(Channel::Channel2, MIN_QTR_PWM)
+                        .unwrap();
+                    TASK_SUCCESS.to_string()
                 }
             },
             Task::CloseFist => {
                 #[cfg(not(feature = "pi"))]
                 {
                     not_on_pi!();
-                    "Successfully ran task!".to_string()
+                    TASK_SUCCESS.to_string()
                 }
                 #[cfg(feature = "pi")]
                 {
-                    maestro.set_target(Channel::Channel0, MAX_QTR_PWM).unwrap();
-                    maestro.set_target(Channel::Channel1, MAX_QTR_PWM).unwrap();
-                    maestro.set_target(Channel::Channel2, MAX_QTR_PWM).unwrap();
-                    "Successfully ran task!".to_string()
+                    self.metadata
+                        .controller
+                        .set_target(Channel::Channel0, MAX_QTR_PWM)
+                        .unwrap();
+                    self.metadata
+                        .controller
+                        .set_target(Channel::Channel1, MAX_QTR_PWM)
+                        .unwrap();
+                    self.metadata
+                        .controller
+                        .set_target(Channel::Channel2, MAX_QTR_PWM)
+                        .unwrap();
+                    TASK_SUCCESS.to_string()
                 }
             },
         };

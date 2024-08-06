@@ -1,5 +1,5 @@
-// Provides the boilerplate to setup routing required to send tasks to the appropriate
-// resource manager
+/// Provides the boilerplate to setup routing required to send tasks to the appropriate
+/// resource manager
 #[macro_export]
 macro_rules! _dispatch_task {
     {

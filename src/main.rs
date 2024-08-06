@@ -38,6 +38,8 @@ use crate::_init_resource_managers as init_resource_managers;
 use crate::managers::Manager;
 use crate::managers::ResourceManager;
 
+/// Represents the mapping between resource manager keys and the tx component
+/// of the resource manager's MPSC channel
 type ManagerChannelMap = HashMap<String, Sender<ManagerChannelData>>;
 
 import_sgcp!();
@@ -50,8 +52,8 @@ async fn main() {
     server::init_gpm_listener(manager_channel_map).await;
 }
 
-// Initializes the resource managers and returns a map containing the mpsc
-// channels to each manager
+/// Initializes the resource managers and returns a map containing the mpsc
+/// channels to each manager
 async fn init_resource_managers() -> ManagerChannelMap {
     init_resource_managers! {
         Resource::Bms => Manager::<Bms>::new(),

@@ -1,6 +1,6 @@
 use core::task;
 
-// All tasks operating on the BMS system live in this file.
+// All tasks operating on the BMS (Battery Management System) live in this file
 use anyhow::Error;
 use anyhow::Result;
 use log::*;
@@ -14,25 +14,30 @@ use super::Resource;
 use super::ResourceManager;
 use super::Responder;
 use super::MAX_MPSC_CHANNEL_BUFFER;
+use super::TASK_SUCCESS;
 use crate::request::TaskData::BmsData;
 use crate::run_task;
 use crate::sgcp::bms::*;
 use crate::todo;
 use crate::verify_channel_data;
 
-pub struct Bms {}
-impl Resource for Bms {}
+/// Represents a BMS resource
+pub struct Bms {
+    // TODO: @krarpit Implement BMS interface
+}
+
+impl Resource for Bms {
+    fn init() -> Self {
+        Bms {} // stub
+    }
+}
 
 impl ResourceManager for Manager<Bms> {
-    fn init(&self) -> Result<()> {
-        info!("Successfully initialized");
-        Ok(()) // stub
-    }
-
     fn tx(&self) -> Sender<ManagerChannelData> {
         self.tx.clone()
     }
 
+    /// Handles all BMS-related tasks
     fn handle_task(&self, rcvd: ManagerChannelData) -> Result<()> {
         let data = verify_channel_data!(rcvd, Task, BmsData).map_err(|err: Error| err)?;
         let task = data.0;
@@ -42,7 +47,7 @@ impl ResourceManager for Manager<Bms> {
             Task::UndefinedTask => todo!(),
             Task::GetHealthMetrics => todo!(),
         }
-        send_channel.send("Successfully ran task!".to_string());
+        send_channel.send(TASK_SUCCESS.to_string());
         Ok(())
     }
 
