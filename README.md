@@ -16,7 +16,7 @@ cargo run
 ```
 ## File Structure
 ```
-sgcp/               -> Protobuf definitions needed to construct requests
+sgcp/               -> Protobuf definitions needed to (de)serialize requests
 src/                
 ├─ managers/        -> Holds source for all "resource managers" ("resource" refers to a distinct component of the arm, such as BMS)
 ├─ config.rs       
