@@ -18,13 +18,13 @@ cargo run
 ```
 sgcp/               -> Protobuf definitions needed to construct requests
 src/                
-├─ managers/        -> Holds source for all "resource managers"; Resource refers to a distinct hardware component of the arm, such as BMS
+├─ managers/        -> Holds source for all "resource managers" ("resource" refers to a distinct component of the arm, such as BMS)
 ├─ config.rs       
 ├─ macros.rs        -> A collection of helpful macros used across the codebase
 ├─ main.rs          
 ├─ server.rs        -> Source for the main TCP server
 ├─ streaming.rs     -> Implements a simple prefix-length framing abstraction to enable streaming protobufs
-├─ telemetry        -> Source for the HTTP telemetry server       
+├─ telemetry.rs     -> Source for the HTTP telemetry server       
 ```
 
 ## System Overview
