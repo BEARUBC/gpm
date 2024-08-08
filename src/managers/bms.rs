@@ -9,11 +9,14 @@ use tokio::sync::mpsc::Sender;
 use super::Manager;
 use super::ManagerChannelData;
 use super::Resource;
+use super::ResourceManager;
 use super::Responder;
 use super::MAX_MPSC_CHANNEL_BUFFER;
 use super::TASK_SUCCESS;
 use crate::parse_channel_data;
 use crate::request::TaskData::BmsData;
+use crate::run;
+use crate::sgcp;
 use crate::sgcp::bms::*;
 use crate::todo;
 use crate::verify_channel_data;
@@ -27,9 +30,15 @@ impl Resource for Bms {
     fn init() -> Self {
         Bms {} // stub
     }
+
+    fn name() -> String {
+        sgcp::Resource::Bms.as_str_name().to_string()
+    }
 }
 
-impl Manager<Bms> {
+impl ResourceManager for Manager<Bms> {
+    run!(Bms);
+
     /// Handles all BMS-related tasks
     fn handle_task(&self, channel_data: ManagerChannelData) -> Result<()> {
         let (task, task_data, send_channel) =

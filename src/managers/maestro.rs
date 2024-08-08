@@ -21,6 +21,7 @@ use tokio::sync::mpsc::Sender;
 use super::Manager;
 use super::ManagerChannelData;
 use super::Resource;
+use super::ResourceManager;
 use super::Responder;
 use super::MAX_MPSC_CHANNEL_BUFFER;
 use crate::managers::TASK_SUCCESS;
@@ -28,6 +29,8 @@ use crate::managers::UNDEFINED_TASK;
 use crate::not_on_pi;
 use crate::parse_channel_data;
 use crate::request::TaskData::MaestroData;
+use crate::run;
+use crate::sgcp;
 use crate::sgcp::maestro::*;
 use crate::todo;
 use crate::verify_channel_data;
@@ -52,9 +55,15 @@ impl Resource for Maestro {
         #[cfg(not(feature = "pi"))]
         Maestro {}
     }
+
+    fn name() -> String {
+        sgcp::Resource::Maestro.as_str_name().to_string()
+    }
 }
 
-impl Manager<Maestro> {
+impl ResourceManager for Manager<Maestro> {
+    run!(Maestro);
+
     /// Handles all Maestro-related tasks
     fn handle_task(&self, channel_data: ManagerChannelData) -> Result<()> {
         let (task, task_data, send_channel) =

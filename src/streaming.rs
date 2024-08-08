@@ -40,23 +40,16 @@ impl Connection {
         }
     }
 
-    /// Read a single protobuf frame from the underlying stream.
-    ///
-    /// The function waits until it has retrieved enough data to parse a frame.
-    /// Any data remaining in the read buffer after the frame has been parsed is
-    /// kept there for the next call to `read_frame`. If the peer cleanly closes the
-    /// connection `Ok(None)` is returned. If the connection is not cleanly closed
+    /// Read a single protobuf frame from the underlying stream. If the peer cleanly closes
+    /// the connection `Ok(None)` is returned. If the connection is not cleanly closed
     /// (i.e buffer is non-empty) an Err is returned.
     pub async fn read_frame(&mut self) -> Result<Option<Request>> {
         loop {
-            // Attempts to parse a frame from the buffered data if enough data
-            // has been read.
             if let Some(req) = self.parse_frame().await? {
                 return Ok(Some(req));
             }
 
-            // There isn't enough data in the buffer, so attempt to read more
-            // data.
+            // Not enough data in the buffer, so attempt to read more data
             if 0 == self.stream.read_buf(&mut self.buffer).await? {
                 // The remote has closed the connection. If the buffer is non-empty,
                 // that indicates the peer closed the connection in the middle of
@@ -93,7 +86,6 @@ impl Connection {
         }
         let mut buf = Cursor::new(&self.buffer[..]);
         let len = buf.get_u64();
-        info!("Length of recieved frame is {:?}", len);
         let mut data = vec![0u8; len.try_into().unwrap()];
         match buf.read_exact(&mut data).await {
             Err(err) => match err.kind() {

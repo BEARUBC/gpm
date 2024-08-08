@@ -8,6 +8,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use anyhow::Result;
+use chrono::DateTime;
 use chrono::Utc;
 use http_body_util::Full;
 use hyper::body::Bytes;
@@ -19,21 +20,29 @@ use hyper_util::rt::TokioIo;
 use log::*;
 use psutil::cpu::CpuPercentCollector;
 use psutil::memory::virtual_memory;
+use serde::Deserialize;
+use serde::Serialize;
 use tokio::net::TcpListener;
 use tokio::sync::Semaphore;
 use tokio::time;
 use tokio::time::interval;
 
-use super::DataPoint;
 use crate::config::MAX_CONCURRENT_CONNECTIONS;
 use crate::config::TELEMETRY_MAX_TICKS;
 use crate::config::TELEMETRY_TCP_ADDR;
 use crate::config::TELEMETRY_TICK_INTERVAL_IN_SECONDS;
 use crate::retry;
 
+/// Represents a timestamped data point to feed into Grafana
+#[derive(Serialize, Deserialize, Debug)]
+pub struct DataPoint {
+    timestamp: DateTime<Utc>,
+    value: f32,
+}
+
 /// Starts the HTTP telemetry server -- can handle at most MAX_CONNCURRENT_CONNECTIONS connections
 /// at any given time
-pub async fn start_server() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+pub async fn init() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let listener = TcpListener::bind(TELEMETRY_TCP_ADDR).await.unwrap();
     let sem = Arc::new(Semaphore::new(MAX_CONCURRENT_CONNECTIONS));
     info!("Telemetry server listening on {:?}", TELEMETRY_TCP_ADDR);

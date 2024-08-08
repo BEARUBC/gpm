@@ -11,11 +11,14 @@ use tokio::sync::mpsc::Sender;
 use super::Manager;
 use super::ManagerChannelData;
 use super::Resource;
+use super::ResourceManager;
 use super::Responder;
 use super::MAX_MPSC_CHANNEL_BUFFER;
 use super::TASK_SUCCESS;
 use crate::parse_channel_data;
 use crate::request::TaskData::EmgData;
+use crate::run;
+use crate::sgcp;
 use crate::sgcp::emg::*;
 use crate::todo;
 use crate::verify_channel_data;
@@ -29,9 +32,15 @@ impl Resource for Emg {
     fn init() -> Self {
         Emg {} // stub
     }
+
+    fn name() -> String {
+        sgcp::Resource::Emg.as_str_name().to_string()
+    }
 }
 
-impl Manager<Emg> {
+impl ResourceManager for Manager<Emg> {
+    run!(Emg);
+
     /// Handles all EMG-related tasks
     fn handle_task(&self, channel_data: ManagerChannelData) -> Result<()> {
         let (task, task_data, send_channel) =

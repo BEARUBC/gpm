@@ -33,8 +33,6 @@ use tokio::sync::mpsc::Sender;
 use tokio::sync::oneshot;
 use tokio::sync::Semaphore;
 
-use crate::_dispatch_task as dispatch_task;
-use crate::_init_resource_managers as init_resource_managers;
 use crate::managers::Manager;
 use crate::managers::ResourceManager;
 
@@ -44,20 +42,28 @@ type ManagerChannelMap = HashMap<String, Sender<ManagerChannelData>>;
 
 import_sgcp!();
 
+/// Provides boilerplate to initialize a resource manager and run it in its own (green) thread
+macro_rules! init_resource_managers {
+    {$($resource:expr => $variant:expr),*} => {{
+        let mut map = HashMap::new();
+        $(
+            info!("Initialising {:?} resource manager task", $resource.as_str_name());
+            let mut manager = $variant;
+            map.insert($resource.as_str_name().to_string(), manager.tx());
+            tokio::spawn(async move { manager.run().await; });
+        )*
+        map
+    }};
+}
+
 #[tokio::main]
 async fn main() {
     config::init();
-    tokio::spawn(telemetry::http::start_server());
-    let manager_channel_map = init_resource_managers().await;
-    server::init_gpm_listener(manager_channel_map).await;
-}
-
-/// Initializes the resource managers and returns a map containing the mpsc
-/// channels to each manager
-async fn init_resource_managers() -> ManagerChannelMap {
-    init_resource_managers! {
+    tokio::spawn(telemetry::init());
+    let manager_channel_map = init_resource_managers! {
         Resource::Bms => Manager::<Bms>::new(),
         Resource::Emg => Manager::<Emg>::new(),
         Resource::Maestro => Manager::<Maestro>::new()
-    }
+    };
+    server::init(manager_channel_map).await;
 }

@@ -33,6 +33,7 @@ pub trait ResourceManager {
 
 pub trait Resource {
     fn init() -> Self;
+    fn name() -> String;
 }
 
 /// Represents a resource manager
@@ -57,24 +58,6 @@ impl<S: Resource> Manager<S> {
     /// enable sending tasks
     pub fn tx(&self) -> Sender<ManagerChannelData> {
         self.tx.clone()
-    }
-}
-
-impl<S: Resource> ResourceManager for Manager<S> {
-    /// Starts the resource manager listener loop
-    async fn run(&mut self) {
-        info!("Listening for messages");
-        while let Some(data) = self.rx.recv().await {
-            match self.handle_task(data) {
-                Err(err) => error!("Handling task failed with error={:?}", err),
-                _ => (),
-            };
-        }
-    }
-
-    /// Stubbed implementation, each resource must implement its own handle_task
-    fn handle_task(&self, channel_data: ManagerChannelData) -> Result<()> {
-        Err(Error::msg("Missing implementation for handle task"))
     }
 }
 
