@@ -6,7 +6,7 @@ The purpose of the GPM is to manage all systems of the arm. It essentially serve
 
 ## Installation
 ```bash
-# After cloning the repository, run the following command to initialize the `sgcp` submodule
+# After cloning the repository, run the following commands to initialize the `sgcp` submodule
 git submodule init
 git submodule update
 
