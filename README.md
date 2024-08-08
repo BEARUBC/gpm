@@ -14,6 +14,18 @@ git submodule update
 cd <REPOSITORY>
 cargo run
 ```
+## File Structure
+```
+sgcp/               -> Protobuf definitions needed to construct requests
+src/                
+├─ managers/        -> Holds source for all "resource managers"; Resource refers to a distinct hardware component of the arm, such as BMS
+├─ config.rs       
+├─ macros.rs        -> A collection of helpful macros used across the codebase
+├─ main.rs          
+├─ server.rs        -> Source for the main TCP server
+├─ streaming.rs     -> Implements a simple prefix-length framing abstraction to enable streaming protobufs
+├─ telemetry        -> Source for the HTTP telemetry server       
+```
 
 ## System Overview
 GPM and Analytics make up the embedded software for GRASP. While GPM is at the heart of the arm and is responsible for interfacing to every component, the Analytics module is the "brain" of the arm and is responsible for making the decisions on grip type based on EMG readings from the pilot and the camera feed. The GRM (Grasp Remote Module) component hosts a Prometheus server that scrapes data from GPM and displays a Grafana dashboard for monitoring.
@@ -21,8 +33,5 @@ GPM and Analytics make up the embedded software for GRASP. While GPM is at the h
 
 <img width="705" alt="image" src="https://github.com/BEARUBC/gpm/assets/83952444/93593ce3-ae5c-4ff7-b5b1-715653146154">
 
-## File Structure
-TODO!
-
 ## Next Steps
-TODO!
+The way that GPM is designed hints at the possibility to create a rather simple framework for designing "task" based embedded software for the Pi. We would want to explore this further and spin up a PoC. For more on embedded system frameworks, have a look at NASA's [f-prime](https://github.com/nasa/fprime).
