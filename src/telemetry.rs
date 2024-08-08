@@ -42,6 +42,8 @@ pub struct DataPoint {
 
 /// Starts the HTTP telemetry server -- can handle at most MAX_CONNCURRENT_CONNECTIONS connections
 /// at any given time
+/// TODO: @krarpit telemetry needs access to manager channel map in order to probe resource health
+///                this needs to be cleaned up and tested
 pub async fn init() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let listener = TcpListener::bind(TELEMETRY_TCP_ADDR).await.unwrap();
     let sem = Arc::new(Semaphore::new(MAX_CONCURRENT_CONNECTIONS));

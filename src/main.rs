@@ -59,11 +59,11 @@ macro_rules! init_resource_managers {
 #[tokio::main]
 async fn main() {
     config::init();
-    tokio::spawn(telemetry::init());
     let manager_channel_map = init_resource_managers! {
         Resource::Bms => Manager::<Bms>::new(),
         Resource::Emg => Manager::<Emg>::new(),
         Resource::Maestro => Manager::<Maestro>::new()
     };
+    tokio::spawn(telemetry::init());
     server::init(manager_channel_map).await;
 }

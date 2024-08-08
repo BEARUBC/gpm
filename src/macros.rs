@@ -101,7 +101,7 @@ macro_rules! run {
                 <$resource>::name()
             );
             while let Some(data) = self.rx.recv().await {
-                match self.handle_task(data) {
+                match self.handle_task(data).await {
                     Err(err) => error!(
                         "Handling {:?} task failed with error={:?}",
                         <$resource>::name(),

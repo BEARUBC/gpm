@@ -40,7 +40,7 @@ impl ResourceManager for Manager<Bms> {
     run!(Bms);
 
     /// Handles all BMS-related tasks
-    fn handle_task(&self, channel_data: ManagerChannelData) -> Result<()> {
+    async fn handle_task(&self, channel_data: ManagerChannelData) -> Result<()> {
         let (task, task_data, send_channel) =
             parse_channel_data!(channel_data, Task, BmsData).map_err(|e: Error| e)?;
         match task {
