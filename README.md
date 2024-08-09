@@ -32,7 +32,7 @@ GPM and Analytics make up the embedded software for GRASP. While GPM is at the h
 
 > A high-level overview of the GRASP system components
 <p align="left">
-  <img width="705" alt="image" src="https://github.com/user-attachments/assets/b0cfa099-0c1a-48e3-a561-07305f334a5e">
+  <img width="703" alt="image" src="https://github.com/user-attachments/assets/5e40bb3e-f838-440a-9d8c-5f6db26e568f">
 </p>
 
 ## Next Steps
