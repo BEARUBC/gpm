@@ -30,8 +30,10 @@ src/
 ## System Overview
 GPM and Analytics make up the embedded software for GRASP. While GPM is at the heart of the arm and is responsible for interfacing to every component, the Analytics module is the "brain" of the arm and is responsible for making the decisions on grip type based on EMG readings from the pilot and the camera feed. The GRM (Grasp Remote Module) component hosts a Prometheus server that scrapes data from GPM and displays a Grafana dashboard for monitoring.
 
-
-<img width="705" alt="image" src="https://github.com/BEARUBC/gpm/assets/83952444/93593ce3-ae5c-4ff7-b5b1-715653146154">
+> A high-level overview of the GRASP system components
+<p align="left">
+  <img width="705" alt="image" src="https://github.com/user-attachments/assets/b0cfa099-0c1a-48e3-a561-07305f334a5e">
+</p>
 
 ## Next Steps
 The way that GPM is designed hints at the possibility to create a rather simple framework for designing "task" based embedded software for the Pi. We would want to explore this further and spin up a PoC. For more on embedded system frameworks, have a look at NASA's [f-prime](https://github.com/nasa/fprime).
