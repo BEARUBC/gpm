@@ -30,7 +30,6 @@ pub fn init() {
     set_var(RUST_LOG_KEY, LOG_LEVEL);
     env_logger::init();
     println!("{}", GRASP_ASCII);
-    println!("{}", NEW_LINE);
     println!("{}", VERSION_LINE);
     println!("{}", BYLINE);
     println!("{}", NEW_LINE);
