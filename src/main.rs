@@ -6,7 +6,7 @@ mod config;
 mod macros;
 mod managers;
 mod server;
-mod streaming;
+mod connection;
 mod telemetry;
 
 use std::any::Any;
@@ -24,7 +24,7 @@ use managers::Emg;
 use managers::Maestro;
 use managers::ManagerChannelData;
 use prost::Message;
-use streaming::Connection;
+use connection::Connection;
 use tokio::io::AsyncReadExt;
 use tokio::io::AsyncWriteExt;
 use tokio::net::TcpListener;

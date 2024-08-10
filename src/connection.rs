@@ -85,6 +85,7 @@ impl Connection {
             return Ok(None);
         }
         let mut buf = Cursor::new(&self.buffer[..]);
+        // TODO: @krarpit check if the length is reasonable
         let len = buf.get_u64();
         let mut data = vec![0u8; len.try_into().unwrap()];
         match buf.read_exact(&mut data).await {

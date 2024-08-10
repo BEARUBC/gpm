@@ -17,7 +17,7 @@ use crate::import_sgcp;
 use crate::managers::ManagerChannelData;
 use crate::retry;
 use crate::sgcp::*;
-use crate::streaming::Connection;
+use crate::connection::Connection;
 use crate::ManagerChannelMap;
 
 /// Provides the boilerplate to setup routing required to send tasks to the appropriate

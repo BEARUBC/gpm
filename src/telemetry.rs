@@ -1,6 +1,5 @@
-// This file contains a tiny http server which exposes system metrics
-// and health check endpoints. These are then scraped by the Prometheus
-// server running remotely.
+// This file contains a tiny http server which exposes our custom
+// prometheus exporter endpoint
 use std::collections::HashMap;
 use std::convert::Infallible;
 use std::net::SocketAddr;
