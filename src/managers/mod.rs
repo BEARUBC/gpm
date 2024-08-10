@@ -28,7 +28,7 @@ const UNDEFINED_TASK: &str = "Undefined task, did you forget to initialize the m
 /// Represent a resource manager
 pub trait ResourceManager {
     async fn run(&mut self);
-    async fn handle_task(&self, data: ManagerChannelData) -> Result<()>;
+    async fn handle_task(&mut self, data: ManagerChannelData) -> Result<()>;
 }
 
 pub trait Resource {

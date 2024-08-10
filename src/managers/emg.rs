@@ -42,7 +42,7 @@ impl ResourceManager for Manager<Emg> {
     run!(Emg);
 
     /// Handles all EMG-related tasks
-    async fn handle_task(&self, channel_data: ManagerChannelData) -> Result<()> {
+    async fn handle_task(&mut self, channel_data: ManagerChannelData) -> Result<()> {
         let (task, task_data, send_channel) =
             parse_channel_data!(channel_data, Task, EmgData).map_err(|e: Error| e)?;
         match task {

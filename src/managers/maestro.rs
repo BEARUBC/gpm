@@ -12,8 +12,6 @@ use raestro::maestro::constants::Channel;
 use raestro::maestro::constants::MAX_QTR_PWM;
 #[cfg(feature = "pi")]
 use raestro::maestro::constants::MIN_QTR_PWM;
-#[cfg(feature = "pi")]
-use raestro::maestro::Maestro;
 use tokio::sync::mpsc::channel;
 use tokio::sync::mpsc::Receiver;
 use tokio::sync::mpsc::Sender;
@@ -34,6 +32,7 @@ use crate::sgcp;
 use crate::sgcp::maestro::*;
 use crate::todo;
 use crate::verify_channel_data;
+use std::time::Duration;
 
 /// Represents a Maestro resource
 pub struct Maestro {
@@ -65,7 +64,7 @@ impl ResourceManager for Manager<Maestro> {
     run!(Maestro);
 
     /// Handles all Maestro-related tasks
-    async fn handle_task(&self, channel_data: ManagerChannelData) -> Result<()> {
+    async fn handle_task(&mut self, channel_data: ManagerChannelData) -> Result<()> {
         let (task, task_data, send_channel) =
             parse_channel_data!(channel_data, Task, MaestroData).map_err(|e: Error| e)?;
         let res = match task {
