@@ -2,12 +2,18 @@ use std::env::set_var;
 
 // GPM TCP listener configs
 pub const MAX_CONCURRENT_CONNECTIONS: usize = 1;
+#[cfg(not(feature = "pi"))]
 pub const GPM_TCP_ADDR: &str = "127.0.0.1:4760";
+#[cfg(feature = "pi")]
+pub const GPM_TCP_ADDR: &str = "0.0.0.0:4760";
 pub const READ_BUFFER_CAPACITY: usize = 1024;
 pub const FRAME_PREFIX_LENGTH: usize = 8;
 
 // Telemetry HTTP server configs
+#[cfg(not(feature = "pi"))]
 pub const TELEMETRY_TCP_ADDR: &str = "127.0.0.1:9999";
+#[cfg(feature = "pi")]
+pub const TELEMETRY_TCP_ADDR: &str = "0.0.0.0:9999";
 pub const TELEMETRY_TICK_INTERVAL_IN_SECONDS: u64 = 1;
 pub const TELEMETRY_MAX_TICKS: usize = 5;
 

@@ -34,8 +34,11 @@ use psutil::memory::virtual_memory;
 use serde::Deserialize;
 use serde::Serialize;
 use sysinfo::Components;
+use sysinfo::CpuRefreshKind;
 use sysinfo::Disks;
+use sysinfo::MemoryRefreshKind;
 use sysinfo::Networks;
+use sysinfo::RefreshKind;
 use sysinfo::System;
 use tokio::net::TcpListener;
 use tokio::sync::Semaphore;
@@ -50,6 +53,7 @@ use crate::retry;
 
 type Label = Vec<(String, String)>;
 
+/// Holds the registry of metrics and each metric definition
 pub struct Exporter {
     registry: Registry,
     cpu_usage: Family<Label, Gauge>,
@@ -78,13 +82,22 @@ impl Exporter {
             let sem_clone = Arc::clone(&sem);
             let (stream, client_addr) = listener.accept().await.unwrap();
             let io = TokioIo::new(stream);
+            info!("Received metrics request");
             self.get_cpu_usage();
             self.get_memory_usage();
+            let buffer = self.dump_registry();
             tokio::task::spawn(async move {
                 // Bounds number of concurrent connections
                 if let Ok(_) = retry!(sem_clone.try_acquire()) {
                     if let Err(err) = http1::Builder::new()
-                        .serve_connection(io, service_fn(get_metrics))
+                        .serve_connection(
+                            io,
+                            service_fn(|req| async {
+                                Ok::<Response<Full<Bytes>>, Infallible>(Response::new(Full::new(
+                                    Bytes::from(buffer.clone()),
+                                )))
+                            }),
+                        )
                         .await
                     {
                         error!("Error serving connection: {:?}", err);
@@ -92,14 +105,13 @@ impl Exporter {
                 } else {
                     error!("Rejected new remote connection from host={:?}, currently serving maximum_clients={:?}", client_addr, MAX_CONCURRENT_CONNECTIONS)
                 }
-            }).await.unwrap();
-            self.dump_registry()
+            });
         }
     }
 
     fn register_metrics(&mut self) {
         self.registry
-            .register("cpu_usage", "Current CPU load", self.cpu_usage.clone());
+            .register("cpu_usage", "Current CPU load percentage", self.cpu_usage.clone());
         self.registry.register(
             "memory_usage",
             "Current memory utilization",
@@ -108,31 +120,32 @@ impl Exporter {
     }
 
     fn get_cpu_usage(&self) {
-        let mut sys = System::new_all();
-        sys.refresh_all();
+        let mut sys =
+            System::new_with_specifics(RefreshKind::new().with_cpu(CpuRefreshKind::everything()));
+        // Wait a bit because CPU usage is based on diff.
+        std::thread::sleep(sysinfo::MINIMUM_CPU_UPDATE_INTERVAL);
+        sys.refresh_cpu_all();
         self.cpu_usage
             .get_or_create(&vec![])
+            // returning just the first core since the Pi Zero is a single core machine
             .set(sys.cpus()[0].cpu_usage() as i64);
     }
 
     fn get_memory_usage(&self) {
-        let mut sys = System::new_all();
-        sys.refresh_all();
+        let mut sys = System::new_with_specifics(
+            RefreshKind::new().with_memory(MemoryRefreshKind::everything()),
+        );
+        sys.refresh_memory();
         self.memory_usage
             .get_or_create(&vec![])
             .set(sys.used_memory() as i64);
     }
 
-    fn dump_registry(&self) {
+    /// Encode both the metrics registered with the provided Registry using OpenMetrics text format.
+    /// Returns encoded String.
+    fn dump_registry(&self) -> String {
         let mut buffer = String::new();
         encode(&mut buffer, &self.registry).unwrap();
-        info!("Buffer dump: {:?}", buffer);
+        buffer
     }
-}
-
-async fn get_metrics(
-    _: Request<hyper::body::Incoming>,
-) -> Result<Response<Full<Bytes>>, Infallible> {
-    info!("Received request for metrics");
-    Ok(Response::new(Full::new(Bytes::from("nothin"))))
 }
