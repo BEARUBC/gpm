@@ -24,12 +24,12 @@ cargo run
 sgcp/               -> Protobuf definitions needed to (de)serialize requests
 src/                
 ├─ managers/        -> Holds source for all "resource managers" ("resource" refers to a distinct component of the arm, such as BMS)
-├─ config.rs       
+├─ config.rs
+├─ connection.rs    -> Implements a simple prefix-length framing abstraction to enable streaming protobufs
+├─ exporter.rs      -> Source for the HTTP telemetry server exposing a custom prometheus exporter endpoint    
 ├─ macros.rs        -> A collection of helpful macros used across the codebase
 ├─ main.rs          
-├─ server.rs        -> Source for the main TCP server
-├─ streaming.rs     -> Implements a simple prefix-length framing abstraction to enable streaming protobufs
-├─ telemetry.rs     -> Source for the HTTP telemetry server       
+├─ server.rs        -> Source for the main TCP server   
 ```
 
 ## System Overview
