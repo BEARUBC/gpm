@@ -122,7 +122,7 @@ impl Exporter {
     fn get_cpu_usage(&self) {
         let mut sys =
             System::new_with_specifics(RefreshKind::new().with_cpu(CpuRefreshKind::everything()));
-        // Wait a bit because CPU usage is based on diff.
+        // wait a bit because CPU usage is based on diff
         std::thread::sleep(sysinfo::MINIMUM_CPU_UPDATE_INTERVAL);
         sys.refresh_cpu_all();
         self.cpu_usage
@@ -141,8 +141,8 @@ impl Exporter {
             .set(sys.used_memory() as i64);
     }
 
-    /// Encode both the metrics registered with the provided Registry using OpenMetrics text format.
-    /// Returns encoded String.
+    /// Encode metrics registered with the provided Registry using OpenMetrics text format, return
+    /// encoded string
     fn dump_registry(&self) -> String {
         let mut buffer = String::new();
         encode(&mut buffer, &self.registry).unwrap();

@@ -1,7 +1,7 @@
 #![allow(warnings)]
 
 // This file contains the main TCP connection loop and is responsible for
-// delegating incoming commands to the appropiate resource mamagers.
+// delegating incoming commands to the appropiate resource managers.
 mod config;
 mod connection;
 mod exporter;
