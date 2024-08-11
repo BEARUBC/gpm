@@ -1,4 +1,6 @@
 // All tasks operating on the Maestro servo controller live in this file
+use std::time::Duration;
+
 use anyhow::Error;
 use anyhow::Result;
 use log::*;
@@ -32,7 +34,6 @@ use crate::sgcp;
 use crate::sgcp::maestro::*;
 use crate::todo;
 use crate::verify_channel_data;
-use std::time::Duration;
 
 /// Represents a Maestro resource
 pub struct Maestro {

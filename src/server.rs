@@ -13,11 +13,11 @@ use tokio::sync::Semaphore;
 
 use crate::config::GPM_TCP_ADDR;
 use crate::config::MAX_CONCURRENT_CONNECTIONS;
+use crate::connection::Connection;
 use crate::import_sgcp;
 use crate::managers::ManagerChannelData;
 use crate::retry;
 use crate::sgcp::*;
-use crate::connection::Connection;
 use crate::ManagerChannelMap;
 
 /// Provides the boilerplate to setup routing required to send tasks to the appropriate
