@@ -35,6 +35,15 @@ use crate::sgcp::maestro::*;
 use crate::todo;
 use crate::verify_channel_data;
 
+macro_rules! set_target {
+    ($($channel:ident => $target:ident),*) => {
+        self.metadata
+            .controller
+            .set_target($channel, $target)
+            .unwrap();
+    };
+}
+
 /// Represents a Maestro resource
 pub struct Maestro {
     #[cfg(feature = "pi")]
@@ -81,18 +90,11 @@ impl ResourceManager for Manager<Maestro> {
                 }
                 #[cfg(feature = "pi")]
                 {
-                    self.metadata
-                        .controller
-                        .set_target(Channel::Channel0, MIN_QTR_PWM)
-                        .unwrap();
-                    self.metadata
-                        .controller
-                        .set_target(Channel::Channel1, MIN_QTR_PWM)
-                        .unwrap();
-                    self.metadata
-                        .controller
-                        .set_target(Channel::Channel2, MIN_QTR_PWM)
-                        .unwrap();
+                    set_target!(
+                        Channel::Channel0 => MIN_QTR_PWM,
+                        Channel::Channel1 => MIN_QTR_PWM,
+                        Channel::Channel2 => MIN_QTR_PWM
+                    );
                     TASK_SUCCESS.to_string()
                 }
             },
@@ -104,18 +106,11 @@ impl ResourceManager for Manager<Maestro> {
                 }
                 #[cfg(feature = "pi")]
                 {
-                    self.metadata
-                        .controller
-                        .set_target(Channel::Channel0, MAX_QTR_PWM)
-                        .unwrap();
-                    self.metadata
-                        .controller
-                        .set_target(Channel::Channel1, MAX_QTR_PWM)
-                        .unwrap();
-                    self.metadata
-                        .controller
-                        .set_target(Channel::Channel2, MAX_QTR_PWM)
-                        .unwrap();
+                    set_target!(
+                        Channel::Channel0 => MAX_QTR_PWM,
+                        Channel::Channel1 => MAX_QTR_PWM,
+                        Channel::Channel2 => MAX_QTR_PWM
+                    );
                     TASK_SUCCESS.to_string()
                 }
             },
