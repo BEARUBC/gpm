@@ -53,20 +53,20 @@ use crate::config::TELEMETRY_TICK_INTERVAL_IN_SECONDS;
 use crate::retry;
 
 type Label = Vec<(String, String)>;
-type GaugeFamily = Family::<Label, Gauge>;
+type GaugeMetric = Family::<Label, Gauge>;
 
 /// Holds the registry of metrics and each metric definition
 pub struct Exporter {
     registry: Arc<Registry>,
-    cpu_usage: GaugeFamily,
-    memory_usage: GaugeFamily,
+    cpu_usage: GaugeMetric,
+    memory_usage: GaugeMetric,
 }
 
 impl Exporter {
     pub fn new() -> Self {
         let mut registry = <Registry>::default();
-        let cpu_usage = GaugeFamily::default();
-        let memory_usage = GaugeFamily::default();
+        let cpu_usage = GaugeMetric::default();
+        let memory_usage = GaugeMetric::default();
         registry.register(
             "cpu_usage",
             "Current CPU load percentage",
@@ -122,7 +122,7 @@ impl Exporter {
         }
     }
 
-    fn get_cpu_usage(gauge: &GaugeFamily) {
+    fn get_cpu_usage(gauge: &GaugeMetric) {
         let mut sys =
             System::new_with_specifics(RefreshKind::new().with_cpu(CpuRefreshKind::everything()));
         sys.refresh_cpu_all();
@@ -135,7 +135,7 @@ impl Exporter {
             .set(sys.cpus()[0].cpu_usage() as i64);
     }
 
-    fn get_memory_usage(gauge: &GaugeFamily) {
+    fn get_memory_usage(gauge: &GaugeMetric) {
         let mut sys = System::new_with_specifics(
             RefreshKind::new().with_memory(MemoryRefreshKind::everything()),
         );

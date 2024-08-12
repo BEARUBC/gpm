@@ -1,4 +1,4 @@
-/// A few handy macros used across the codebase
+// A few handy macros used across the codebase
 
 /// Imports the protobuf generated code to enable de/serialization
 /// TODO: @krarpit this should really be a proc macro that reads from the

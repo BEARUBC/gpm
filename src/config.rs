@@ -27,8 +27,8 @@ const GRASP_ASCII: &str = r"
 / /_/ / /  / /_/ (__  ) /_/ /
 \____/_/   \__,_/____/ .___/ 
                     /_/      ";
-const VERSION_LINE: &str = "Version 0.0.1";
-const BYLINE: &str = "Developed at UBC Bionics";
+const VERSION_LINE: &str = "Grasp primary control module | Version 0.0.1";
+const BYLINE: &str = "Developed at UBC Bionics (http://www.ubcbionics.com)";
 const NEW_LINE: &str = "\n";
 
 /// Initializes env_logger and prints metadata
