@@ -53,7 +53,7 @@ use crate::config::TELEMETRY_TICK_INTERVAL_IN_SECONDS;
 use crate::retry;
 
 type Label = Vec<(String, String)>;
-type GaugeMetric = Family::<Label, Gauge>;
+type GaugeMetric = Family<Label, Gauge>;
 
 /// Holds the registry of metrics and each metric definition
 pub struct Exporter {
@@ -140,8 +140,6 @@ impl Exporter {
             RefreshKind::new().with_memory(MemoryRefreshKind::everything()),
         );
         sys.refresh_memory();
-        gauge
-            .get_or_create(&vec![])
-            .set(sys.used_memory() as i64);
+        gauge.get_or_create(&vec![]).set(sys.used_memory() as i64);
     }
 }

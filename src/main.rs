@@ -26,6 +26,8 @@ use managers::Emg;
 use managers::Maestro;
 use managers::ManagerChannelData;
 use prost::Message;
+use rppal::gpio::Gpio;
+use rppal::gpio::InputPin;
 use tokio::io::AsyncReadExt;
 use tokio::io::AsyncWriteExt;
 use tokio::net::TcpListener;
@@ -33,6 +35,7 @@ use tokio::net::TcpStream;
 use tokio::sync::mpsc::Sender;
 use tokio::sync::oneshot;
 use tokio::sync::Semaphore;
+use tokio::time::sleep;
 
 use crate::managers::Manager;
 use crate::managers::ResourceManager;
@@ -40,6 +43,7 @@ use crate::managers::ResourceManager;
 /// Represents the mapping between resource manager keys and the tx component
 /// of the resource manager's MPSC channel
 type ManagerChannelMap = HashMap<String, Sender<ManagerChannelData>>;
+const PIN_TO_MONITOR: i32 = 2;
 
 import_sgcp!();
 
@@ -57,6 +61,34 @@ macro_rules! init_resource_managers {
     }};
 }
 
+async fn start_monitoring_pin(maestro_tx: Sender<ManagerChannelData>) {
+    info!("Started GPIO pin monitor for pin {:?}", PIN_TO_MONITOR);
+    let gpio = Gpio::new().expect("Failed to initialize GPIO");
+    let mut pin = gpio
+        .get(PIN_TO_MONITOR)
+        .expect("Failed to access pin")
+        .into_input_pullup();
+    loop {
+        let resp_tx = oneshot::channel::<String>();
+        if pin.is_high() {
+            maestro_tx.send(ManagerChannelData {
+                task_code: sgcp::maestro::Task::OpenFist.as_str_name().to_string(),
+                task_data: None,
+                resp_tx,
+            })
+        } else {
+            maestro_tx.send(ManagerChannelData {
+                task_code: sgcp::maestro::Task::CloseFist.as_str_name().to_string(),
+                task_data: None,
+                resp_tx,
+            })
+        }
+        let res = resp_rx.await.unwrap();
+        info!("Receieved response from Maestro manager: {:?}", res);
+        sleep(Duration::from_millis(100)).await;
+    }
+}
+
 #[tokio::main]
 async fn main() {
     config::init();
@@ -68,6 +100,12 @@ async fn main() {
     tokio::spawn(async {
         let mut exporter = Exporter::new();
         exporter.init().await
+    });
+    let maestro_tx = manager_channel_map
+        .get(Resource::Maestro.as_str_name())
+        .clone();
+    tokio::spawn(async move {
+        start_monitoring_pin(maestro_tx).await;
     });
     server::init(manager_channel_map).await;
 }

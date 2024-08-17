@@ -36,11 +36,8 @@ use crate::todo;
 use crate::verify_channel_data;
 
 macro_rules! set_target {
-    ($($channel:ident => $target:ident),*) => {
-        self.metadata
-            .controller
-            .set_target($channel, $target)
-            .unwrap();
+    ($metadata:expr, $($channel:ident => $target:ident),*) => {
+        $metadata.controller.set_target($channel, $target).unwrap();
     };
 }
 
@@ -91,6 +88,7 @@ impl ResourceManager for Manager<Maestro> {
                 #[cfg(feature = "pi")]
                 {
                     set_target!(
+                        self.metadata,
                         Channel::Channel0 => MIN_QTR_PWM,
                         Channel::Channel1 => MIN_QTR_PWM,
                         Channel::Channel2 => MIN_QTR_PWM
@@ -107,6 +105,7 @@ impl ResourceManager for Manager<Maestro> {
                 #[cfg(feature = "pi")]
                 {
                     set_target!(
+                        self.metadata,
                         Channel::Channel0 => MAX_QTR_PWM,
                         Channel::Channel1 => MAX_QTR_PWM,
                         Channel::Channel2 => MAX_QTR_PWM

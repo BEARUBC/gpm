@@ -388,6 +388,7 @@ dependencies = [
  "prost-types",
  "psutil",
  "raestro",
+ "rppal 0.19.0",
  "serde",
  "serde_json",
  "sysinfo",
@@ -911,7 +912,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "98ce2738d7a4c816385e6dc9d214d9d53a299649a6b8e43dfb0de54a8415a0eb"
 dependencies = [
  "derive_more",
- "rppal",
+ "rppal 0.14.1",
 ]
 
 [[package]]
@@ -977,6 +978,15 @@ name = "rppal"
 version = "0.14.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "612e1a22e21f08a246657c6433fe52b773ae43d07c9ef88ccfc433cc8683caba"
+dependencies = [
+ "libc",
+]
+
+[[package]]
+name = "rppal"
+version = "0.19.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3b37e992f3222e304708025de77c9e395068a347449d0d7164f52d3beccdbd8d"
 dependencies = [
  "libc",
 ]
