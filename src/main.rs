@@ -26,7 +26,9 @@ use managers::Emg;
 use managers::Maestro;
 use managers::ManagerChannelData;
 use prost::Message;
+#[cfg(feature = "pi")]
 use rppal::gpio::Gpio;
+#[cfg(feature = "pi")]
 use rppal::gpio::InputPin;
 use tokio::io::AsyncReadExt;
 use tokio::io::AsyncWriteExt;
@@ -61,6 +63,7 @@ macro_rules! init_resource_managers {
     }};
 }
 
+#[cfg(feature = "pi")]
 async fn start_monitoring_pin(maestro_tx: Sender<ManagerChannelData>) {
     info!("Started GPIO pin monitor for pin {:?}", PIN_TO_MONITOR);
     let gpio = Gpio::new().expect("Failed to initialize GPIO");
@@ -75,13 +78,13 @@ async fn start_monitoring_pin(maestro_tx: Sender<ManagerChannelData>) {
                 task_code: sgcp::maestro::Task::OpenFist.as_str_name().to_string(),
                 task_data: None,
                 resp_tx,
-            })
+            });
         } else {
             maestro_tx.send(ManagerChannelData {
                 task_code: sgcp::maestro::Task::CloseFist.as_str_name().to_string(),
                 task_data: None,
                 resp_tx,
-            })
+            });
         }
         let res = resp_rx.await.unwrap();
         info!("Receieved response from Maestro manager: {:?}", res);
@@ -101,11 +104,16 @@ async fn main() {
         let mut exporter = Exporter::new();
         exporter.init().await
     });
-    let maestro_tx = manager_channel_map
-        .get(Resource::Maestro.as_str_name())
-        .clone();
-    tokio::spawn(async move {
-        start_monitoring_pin(maestro_tx).await;
-    });
+
+    // #[cfg(feature = "pi")]
+    // {
+    //     let maestro_tx = manager_channel_map
+    //         .get(Resource::Maestro.as_str_name())
+    //         .clone();
+    //     tokio::spawn(async move {
+    //         start_monitoring_pin(maestro_tx).await;
+    //     });
+    // }
+    
     server::init(manager_channel_map).await;
 }
