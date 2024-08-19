@@ -94,6 +94,9 @@ async fn start_monitoring_pin(maestro_tx: Sender<ManagerChannelData>) {
 
 #[tokio::main]
 async fn main() {
+    #[cfg(feature = "dev")]
+    console_subscriber::init();
+    
     config::init();
     let manager_channel_map = init_resource_managers! {
         Resource::Bms => Manager::<Bms>::new(),
@@ -105,15 +108,15 @@ async fn main() {
         exporter.init().await
     });
 
-    // #[cfg(feature = "pi")]
-    // {
-    //     let maestro_tx = manager_channel_map
-    //         .get(Resource::Maestro.as_str_name())
-    //         .clone();
-    //     tokio::spawn(async move {
-    //         start_monitoring_pin(maestro_tx).await;
-    //     });
-    // }
+    #[cfg(feature = "pi")]
+    {
+        let maestro_tx = manager_channel_map
+            .get(Resource::Maestro.as_str_name())
+            .clone();
+        tokio::spawn(async move {
+            start_monitoring_pin(maestro_tx).await;
+        });
+    }
     
     server::init(manager_channel_map).await;
 }
