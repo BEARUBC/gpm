@@ -1,13 +1,13 @@
 #![allow(warnings)]
 
-// This file contains the main TCP connection loop and is responsible for
-// delegating incoming commands to the appropiate resource managers.
-mod config;
-mod connection;
-mod exporter;
-mod macros;
-mod managers;
-mod server;
+// This file contains the main TCP connection loop 
+// It is responsible for handling incoming TCP connections, delegating tasks to resource managers, and initializing key components.
+mod config;         // Configuration settings (e.g., TCP address, buffer sizes)
+mod connection;    // Handles TCP connection framing and data transmission
+mod exporter;      // Telemetry exporter for system metrics
+mod macros;        // Utility macros for common functionality
+mod managers;      // Resource management framework
+mod server;        // Main server loop and task routing
 
 use std::any::Any;
 use std::collections::HashMap;
@@ -44,9 +44,12 @@ use crate::managers::ResourceManager;
 
 /// Represents the mapping between resource manager keys and the tx component
 /// of the resource manager's MPSC channel
-type ManagerChannelMap = HashMap<String, Sender<ManagerChannelData>>;
+type ManagerChannelMap = HashMap<String, Sender<ManagerChannelData
+    
+// GPIO pin to monitor muscle activity (only for Raspberry Pi builds) #[cfg(feature = "pi")]
 const PIN_TO_MONITOR: i32 = 2;
 
+// Import protobuf definitions for task communication
 import_sgcp!();
 
 /// Provides boilerplate to initialize a resource manager and run it in its own (green) thread
@@ -63,6 +66,7 @@ macro_rules! init_resource_managers {
     }};
 }
 
+/// Starts monitoring GPIO pins for muscle activity and triggers appropriate tasks.
 #[cfg(feature = "pi")]
 async fn start_monitoring_pin(maestro_tx: Sender<ManagerChannelData>) {
     info!("Started GPIO pin monitor for pin {:?}", PIN_TO_MONITOR);
@@ -92,22 +96,31 @@ async fn start_monitoring_pin(maestro_tx: Sender<ManagerChannelData>) {
     }
 }
 
+/// Main entry point for the bionic arm system.
+/// Initializes all resource managers, telemetry, and starts the TCP server.
 #[tokio::main]
 async fn main() {
+    // Initialize the logger for detailed runtime diagnostics.
     #[cfg(feature = "dev")]
     console_subscriber::init();
     
+    // Load configuration settings (e.g., logging level, server addresses).
     config::init();
+
+    // Initialize resource managers and their communication channels.
     let manager_channel_map = init_resource_managers! {
         Resource::Bms => Manager::<Bms>::new(),
         Resource::Emg => Manager::<Emg>::new(),
         Resource::Maestro => Manager::<Maestro>::new()
     };
+
+    // Spawn the telemetry exporter as an independent async task.
     tokio::spawn(async {
         let mut exporter = Exporter::new();
         exporter.init().await
     });
-
+    
+    // If running on Raspberry Pi, start monitoring GPIO pins for muscle activity.
     #[cfg(feature = "pi")]
     {
         let maestro_tx = manager_channel_map
@@ -117,6 +130,6 @@ async fn main() {
             start_monitoring_pin(maestro_tx).await;
         });
     }
-    
+    // Start the main TCP server loop to handle incoming connections.
     server::init(manager_channel_map).await;
 }
