@@ -1,13 +1,13 @@
 #![allow(warnings)]
 
-// This file contains the main TCP connection loop 
+// This file contains the main TCP connection loop
 // It is responsible for handling incoming TCP connections, delegating tasks to resource managers, and initializing key components.
-mod config;         // Configuration settings (e.g., TCP address, buffer sizes)
-mod connection;    // Handles TCP connection framing and data transmission
-mod exporter;      // Telemetry exporter for system metrics
-mod macros;        // Utility macros for common functionality
-mod managers;      // Resource management framework
-mod server;        // Main server loop and task routing
+mod config; // Configuration settings (e.g., TCP address, buffer sizes)
+mod connection; // Handles TCP connection framing and data transmission
+mod exporter; // Telemetry exporter for system metrics
+mod macros; // Utility macros for common functionality
+mod managers; // Resource management framework
+mod server; // Main server loop and task routing
 
 use std::any::Any;
 use std::collections::HashMap;
@@ -44,8 +44,8 @@ use crate::managers::ResourceManager;
 
 /// Represents the mapping between resource manager keys and the tx component
 /// of the resource manager's MPSC channel
-type ManagerChannelMap = HashMap<String, Sender<ManagerChannelData
-    
+type ManagerChannelMap = HashMap<String, Sender<ManagerChannelData>>;
+
 // GPIO pin to monitor muscle activity (only for Raspberry Pi builds) #[cfg(feature = "pi")]
 const PIN_TO_MONITOR: i32 = 2;
 
@@ -103,7 +103,7 @@ async fn main() {
     // Initialize the logger for detailed runtime diagnostics.
     #[cfg(feature = "dev")]
     console_subscriber::init();
-    
+
     // Load configuration settings (e.g., logging level, server addresses).
     config::init();
 
@@ -119,7 +119,7 @@ async fn main() {
         let mut exporter = Exporter::new();
         exporter.init().await
     });
-    
+
     // If running on Raspberry Pi, start monitoring GPIO pins for muscle activity.
     #[cfg(feature = "pi")]
     {
