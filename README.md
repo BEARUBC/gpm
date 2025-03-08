@@ -147,9 +147,12 @@ The telemetry exporter collects and serves system performance data, ensuring tra
 2. Trigger events map to predefined actions, like opening or closing the hand.
 
 
-> A high-level overview of the GRASP system components, **This needs to be updated**
-<p align="left">
+> A high-level overview of the GRASP system components:
+<!-- <p align="left">
   <img width="703" alt="image" src="https://github.com/user-attachments/assets/5e40bb3e-f838-440a-9d8c-5f6db26e568f">
+</p> -->
+<p align="left">
+  <img alt="image" src=assets/grasp_2_edit.png>
 </p>
 
 ## Next Steps
