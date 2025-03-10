@@ -18,6 +18,8 @@ rustup default nightly
 # Finally, start GPM
 cd <REPOSITORY>
 cargo run
+
+# Command you must add for when you are using pi for actuation of arm vs not using Pi
 ```
 ## File Structure
 ```
