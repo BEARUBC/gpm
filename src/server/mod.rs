@@ -16,6 +16,8 @@ use tokio::net::TcpListener;
 use tokio::net::TcpStream;
 use tokio::sync::Semaphore;
 use tokio::sync::oneshot;
+use tokio::time::{interval, Duration};
+
 
 /// Starts the main TCP listener loop -- can handle at most MAX_CONCURRENT_CONNECTIONS connections
 /// at any given time
@@ -121,4 +123,79 @@ async fn dispatch_task(
         sgcp::Resource::Emg => manager_channel_map.get(sgcp::Resource::Emg.as_str_name()),
         sgcp::Resource::Maestro => manager_channel_map.get(sgcp::Resource::Maestro.as_str_name())
     )
+}
+
+// nicks BS VV
+
+// move this somewhere else
+// event-driven task generation
+// This function is responsible for monitoring events and generating requests
+// based on those events. It uses a timer to trigger periodic tasks and
+// simulates an event-driven architecture.
+async fn handle_emg_idle_response(response: &str, manager_channel_map: &ManagerChannelMap) {
+    let (task_code, resource) = match response {
+        "OPEN HAND" => ("OPEN_FIST", sgcp::Resource::Maestro),
+        "CLOSE HAND" => ("CLOSE_FIST", sgcp::Resource::Maestro),
+        _ => {
+            error!("Unexpected response: {}", response);
+            return;
+        }
+    };
+
+    let request = sgcp::Request {
+        resource: resource as i32,
+        task_code: task_code.to_string(),
+        task_data: None,
+    };
+
+    match dispatch_task(request, manager_channel_map).await {
+        Ok(res) => info!("Task succeeded: {:?}", res), // need to return a string here
+        Err(e) => error!("Task failed: {:?}", e),
+    }
+}
+
+async fn process_emg_idle_task(manager_channel_map: &ManagerChannelMap) {
+    let request = sgcp::Request {
+        resource: sgcp::Resource::Emg as i32,
+        task_code: "IDLE".to_string(),
+        task_data: None,
+    };
+
+    match dispatch_task(request, manager_channel_map).await {
+        Ok(res) => handle_emg_idle_response(res.as_str(), manager_channel_map).await,
+        Err(err) => {
+            error!("An error occurred when dispatching task; error={err}");
+            log::error!("Failed to dispatch maintenance task: {:?}", err);
+        }
+    }
+}
+
+// idle tasks
+pub async fn monitor_events(manager_channel_map: ManagerChannelMap) {
+
+    // init
+    init_tasks(manager_channel_map.clone()).await;
+
+    //let mut EMG_idle = interval(Duration::from_millis(2)); // 500 Hz sampling rate
+    let mut EMG_idle = interval(Duration::from_millis(1000)); // 1 Hz sampling rate
+    let send_channel_map = manager_channel_map.clone();
+    loop {
+        tokio::select! {
+            _ = EMG_idle.tick() => {
+                process_emg_idle_task(&send_channel_map).await;
+            }
+        }
+    }
+}
+
+pub async fn init_tasks(manager_channel_map: ManagerChannelMap){
+    // run initialization tasks
+    let init_request = sgcp::Request {
+        resource: sgcp::Resource::Emg as i32,
+        task_code: "CALIBRATE".to_string(),
+        task_data: None,
+    };
+    let init_map = manager_channel_map.clone();
+
+    dispatch_task(init_request, &init_map).await;
 }

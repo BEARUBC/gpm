@@ -1,0 +1,1 @@
+// visualizer for emg data - helper file - not a manager
