@@ -1,4 +1,4 @@
-command_dispatch_strategy = "server"
+command_dispatch_strategy = "emg_sensor"
 
 [server]
 max_concurrent_connections = 1
@@ -8,6 +8,12 @@ frame_prefix_length_in_bytes = 8
 
 [gpio_monitor]
 pin = 2
+
+[emg_sensor]
+buffer_size: 100
+pause_duration_ms: 500
+sampling_speed_ms 1000
+cs_pin = 17
 
 [telemetry]
 address = "0.0.0.0:9999"
