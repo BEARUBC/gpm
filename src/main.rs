@@ -1,30 +1,34 @@
 #![allow(warnings)]
 
-// This file contains the main TCP connection loop
-// It is responsible for handling incoming TCP connections, delegating tasks to resource managers, and initializing key components.
-mod config; // Configuration settings (e.g., TCP address, buffer sizes)
-mod connection; // Handles TCP connection framing and data transmission
-mod exporter; // Telemetry exporter for system metrics
-mod macros; // Utility macros for common functionality
-mod managers; // Resource management framework
-mod server; // Main server loop and task routing
+mod config;
+mod gpio_monitor;
+mod macros;
+mod managers;
+mod server;
+mod telemetry;
 
-use std::any::Any;
+use config::CommandDispatchStrategy;
+use config::Config;
+use log::*;
+use managers::HasMpscChannel;
+use managers::Manager;
+use managers::ManagerChannelData;
+use managers::ResourceManager;
+use managers::resources::bms::Bms;
+use managers::resources::emg::Emg;
+use managers::resources::maestro::Maestro;
 use std::collections::HashMap;
+use tokio::sync::mpsc::Sender;
+
+
 use std::io::Cursor;
 use std::sync::Arc;
 
 use anyhow::Result;
 use bytes::BytesMut;
-use config::GPM_TCP_ADDR;
-use config::MAX_CONCURRENT_CONNECTIONS;
-use connection::Connection;
-use exporter::Exporter;
+
 use log::*;
-use managers::Bms;
-use managers::Emg;
-use managers::Maestro;
-use managers::ManagerChannelData;
+
 use prost::Message;
 #[cfg(feature = "pi")]
 use rppal::gpio::Gpio;
@@ -34,13 +38,11 @@ use tokio::io::AsyncReadExt;
 use tokio::io::AsyncWriteExt;
 use tokio::net::TcpListener;
 use tokio::net::TcpStream;
-use tokio::sync::mpsc::Sender;
+
 use tokio::sync::oneshot;
 use tokio::sync::Semaphore;
 use tokio::time::sleep;
 
-use crate::managers::Manager;
-use crate::managers::ResourceManager;
 
 /// Represents the mapping between resource manager keys and the tx component
 /// of the resource manager's MPSC channel
@@ -53,7 +55,7 @@ const PIN_TO_MONITOR: i32 = 2;
 import_sgcp!();
 
 /// Provides boilerplate to initialize a resource manager and run it in its own (green) thread
-macro_rules! init_resource_managers {
+macro_rules! init_resource_managers { // .run is called here for each manager, and things are init'd
     {$($resource:expr => $variant:expr),*} => {{
         let mut map = HashMap::new();
         $(
@@ -66,37 +68,6 @@ macro_rules! init_resource_managers {
     }};
 }
 
-/// Starts monitoring GPIO pins for muscle activity and triggers appropriate tasks.
-/// This is for when the code for the EMG wasn't working and we wanted experiment while using a button on the maestro
-#[cfg(feature = "pi")]
-async fn start_monitoring_pin(maestro_tx: Sender<ManagerChannelData>) {
-    info!("Started GPIO pin monitor for pin {:?}", PIN_TO_MONITOR);
-    let gpio = Gpio::new().expect("Failed to initialize GPIO");
-    let mut pin = gpio
-        .get(PIN_TO_MONITOR)
-        .expect("Failed to access pin")
-        .into_input_pullup();
-    loop {
-        let resp_tx = oneshot::channel::<String>();
-        if pin.is_high() {
-            maestro_tx.send(ManagerChannelData {
-                task_code: sgcp::maestro::Task::OpenFist.as_str_name().to_string(),
-                task_data: None,
-                resp_tx,
-            });
-        } else {
-            maestro_tx.send(ManagerChannelData {
-                task_code: sgcp::maestro::Task::CloseFist.as_str_name().to_string(),
-                task_data: None,
-                resp_tx,
-            });
-        }
-        let res = resp_rx.await.unwrap();
-        info!("Receieved response from Maestro manager: {:?}", res);
-        sleep(Duration::from_millis(100)).await;
-    }
-}
-
 /// Main entry point for the bionic arm system.
 /// Initializes all resource managers, telemetry, and starts the TCP server.
 #[tokio::main]
@@ -106,31 +77,37 @@ async fn main() {
     console_subscriber::init();
 
     // Load configuration settings (e.g., logging level, server addresses).
-    config::init();
-
+    config::logger_init();
     // Initialize resource managers and their communication channels.
-    let manager_channel_map = init_resource_managers! {
-        Resource::Bms => Manager::<Bms>::new(),
-        Resource::Emg => Manager::<Emg>::new(),
-        Resource::Maestro => Manager::<Maestro>::new()
+    let manager_channel_map = managers::macros::init_resource_managers! {
+        sgcp::Resource::Bms => Manager::<Bms>::new(),
+        sgcp::Resource::Emg => Manager::<Emg>::new(),
+        sgcp::Resource::Maestro => Manager::<Maestro>::new()
     };
 
     // Spawn the telemetry exporter as an independent async task.
     tokio::spawn(async {
-        let mut exporter = Exporter::new();
+        let mut exporter = telemetry::Exporter::new();
         exporter.init().await
     });
 
-    // If running on Raspberry Pi, start monitoring GPIO pins for muscle activity.
-    #[cfg(feature = "pi")]
-    {
-        let maestro_tx = manager_channel_map
-            .get(Resource::Maestro.as_str_name())
-            .clone();
-        tokio::spawn(async move {
-            start_monitoring_pin(maestro_tx).await;
-        });
+    match Config::global().command_dispatch_strategy {
+        CommandDispatchStrategy::Server => server::run_server_loop(manager_channel_map).await,
+        CommandDispatchStrategy::GpioMonitor => {
+            gpio_monitor::run_gpio_monitor_loop(
+                manager_channel_map
+                    .get(sgcp::Resource::Maestro.as_str_name())
+                    .expect("Expected the Maestro manager to be initialized")
+                    .clone(),
+            )
+            .await;
+        },
+        CommandDispatchStrategy::Internal => server::monitor_events(manager_channel_map).await,
     }
-    // Start the main TCP server loop to handle incoming connections.
-    server::init(manager_channel_map).await;
+    
+    // Keep the runtime alive indefinitely
+    loop {
+        tokio::time::sleep(tokio::time::Duration::from_secs(3600)).await;
+    }
+    
 }
