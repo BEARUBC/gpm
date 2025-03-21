@@ -22,6 +22,8 @@ use crate::sgcp;
 use crate::sgcp::emg::*;
 use crate::todo;
 use crate::verify_channel_data;
+use spidev::{Spidev, SpidevOptions, SpidevTransfer, SpiModeFlags};
+use mcp3008::Mcp3008;
 
 /// Represents an EMG resource
 pub struct Emg {
@@ -49,6 +51,12 @@ impl ResourceManager for Manager<Emg> {
             Task::UndefinedTask => todo!(),
         }
         send_channel.send(TASK_SUCCESS.to_string());
+        Ok(())
+    }
+}
+
+impl Emg{
+    fn process_data(&self) -> Result<()>{
         Ok(())
     }
 }
