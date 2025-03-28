@@ -23,16 +23,35 @@ use crate::sgcp::emg::*;
 use crate::todo;
 use crate::verify_channel_data;
 use spidev::{Spidev, SpidevOptions, SpidevTransfer, SpiModeFlags};
+use std::io;
 use mcp3008::Mcp3008;
+use embedded_hal::spi::FullDuplex;
+use embedded_hal::digital::v2::OutputPin;
+use linux_embedded_hal::{Spidev, Pin, SpidevOptions};
+use std::error::Error;
+
 
 /// Represents an EMG resource
 pub struct Emg {
-    // WILL NOT IMPLEMENT (SEE NOTE AT TOP OF FILE)
+    inner_read_buffer_size: u32,
+    outer_read_buffer_size: u32,
+    mock_reader_state_buffer_size: u32, 
+    sleep_between_reads_in_seconds: f16, 
+    use_mock_adc: bool,
+    // circular buffer
+    // chan0,1
+
 }
 
 impl Resource for Emg {
-    fn init() -> Self {
-        Emg {} // stub
+    fn init() -> Self {   
+        Emg {
+            inner_read_buffer_size: 2000, // hardcode for now // chekc if we actually need this
+            outer_read_buffer_size: 2000,
+            mock_reader_state_buffer_size: 100, 
+            sleep_between_reads_in_seconds: 0.1, 
+            use_mock_adc: false,
+        } 
     }
 
     fn name() -> String {
@@ -43,7 +62,7 @@ impl Resource for Emg {
 impl ResourceManager for Manager<Emg> {
     run!(Emg);
 
-    /// Handles all EMG-related tasks
+    /// Handles all EMG-related tasks // is this meant to be for the 
     async fn handle_task(&mut self, channel_data: ManagerChannelData) -> Result<()> {
         let (task, task_data, send_channel) =
             parse_channel_data!(channel_data, Task, EmgData).map_err(|e: Error| e)?;
@@ -56,7 +75,40 @@ impl ResourceManager for Manager<Emg> {
 }
 
 impl Emg{
+
     fn process_data(&self) -> Result<()>{
+        Ok(())
+    }
+    
+    fn calibrate_EMG(&self) -> [i32; 2]{
+        let min_value = 0;
+        let max_value = 1023;
+        [min_value, max_value]
+    }
+
+    fn read_adc(&self, ) -> (){
+        let adc = self.start_reading_adc();
+        // // example read 
+        let adc_value = adc.read_channel(0)?;
+        println!("ADC value on channel 0: {}", adc_value);
+    }
+
+    fn start_reading_adc() -> Mcp3008{
+        // create spi bus // move this into handle task
+        let mut spi = Spidev::open("/dev/spidev0.0")?;
+
+        let options = SpidevOptions::new() // tweak these
+            .bits_per_word(8)
+            .max_speed_hz(1_000_000) // 1 MHz
+            .mode(MODE)
+            .build();
+        spi.configure(&options)?;
+
+        // Create MCP3008 instance
+        let mut adc = Mcp3008::new(spi);
+    }
+
+    fn plot_data(&self) -> Result<()>{
         Ok(())
     }
 }
