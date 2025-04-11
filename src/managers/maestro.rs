@@ -70,11 +70,11 @@ impl Resource for Maestro {
 impl ResourceManager for Manager<Maestro> {
     run!(Maestro);
 
-    /// Handles all Maestro-related tasks
+    /// Handles all Maestro-related tasks // todo: convert this to collect things from the EMG manager
     async fn handle_task(&mut self, channel_data: ManagerChannelData) -> Result<()> {
         let (task, task_data, send_channel) =
             parse_channel_data!(channel_data, Task, MaestroData).map_err(|e: Error| e)?;
-        let res = match task {
+        let res: String = match task {
             Task::UndefinedTask => {
                 warn!("Encountered an undefined task type");
                 UNDEFINED_TASK.to_string()

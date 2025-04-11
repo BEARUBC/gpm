@@ -23,6 +23,7 @@ use crate::sgcp::emg::*;
 use crate::todo;
 use crate::verify_channel_data;
 use spidev::{Spidev, SpidevOptions, SpidevTransfer, SpiModeFlags};
+use std::char::DecodeUtf16;
 use std::io;
 use mcp3008::Mcp3008;
 use embedded_hal::spi::FullDuplex;
@@ -38,9 +39,14 @@ pub struct Emg {
     mock_reader_state_buffer_size: u32, 
     sleep_between_reads_in_seconds: f16, 
     use_mock_adc: bool,
+    adc: Mcp3008
     // circular buffer
     // chan0,1
 
+}
+
+pub struct fakeEMG{
+    // idk read some data from a csv
 }
 
 impl Resource for Emg {
@@ -51,7 +57,10 @@ impl Resource for Emg {
             mock_reader_state_buffer_size: 100, 
             sleep_between_reads_in_seconds: 0.1, 
             use_mock_adc: false,
-        } 
+            adc: None
+        };
+        Emg::adc = Emg::start_reading_adc();
+        Emg::calibrate_EMG(&self)
     }
 
     fn name() -> String {
@@ -64,10 +73,19 @@ impl ResourceManager for Manager<Emg> {
 
     /// Handles all EMG-related tasks // is this meant to be for the 
     async fn handle_task(&mut self, channel_data: ManagerChannelData) -> Result<()> {
+        let channel0_value = Emg::read_adc(&self, 0);
+        match channel0_value {
+            // Ok() => // send this to maestro manager
+            // err() => send a 0 or null to maestro manager
+        }
+        
+
+
         let (task, task_data, send_channel) =
             parse_channel_data!(channel_data, Task, EmgData).map_err(|e: Error| e)?;
         match task {
             Task::UndefinedTask => todo!(),
+            Task::ProcessDataTask => todo!()
         }
         send_channel.send(TASK_SUCCESS.to_string());
         Ok(())
@@ -86,12 +104,12 @@ impl Emg{
         [min_value, max_value]
     }
 
-    fn read_adc(&self, ) -> (){
-        let adc = self.start_reading_adc();
+    fn read_adc(&self, channel: u16) -> Result<u16, Mcp3008Error> {
         // // example read 
-        let adc_value = adc.read_channel(0)?;
-        println!("ADC value on channel 0: {}", adc_value);
-    }
+        let adc_value = self.adc.read_channel(channel)?;
+        println!("ADC value on channel {}: {}", channel, adc_value); // adc_value is u16 
+        // while true, append to circular buffer
+    } // need result enum to emit grip state
 
     fn start_reading_adc() -> Mcp3008{
         // create spi bus // move this into handle task
@@ -110,5 +128,15 @@ impl Emg{
 
     fn plot_data(&self) -> Result<()>{
         Ok(())
+    }
+}
+
+pub struct calibrationVisualizer{
+
+}
+
+impl calibrationVisualizer{
+    fn init() -> (){
+
     }
 }
