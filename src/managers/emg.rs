@@ -34,33 +34,36 @@ use std::error::Error;
 
 /// Represents an EMG resource
 pub struct Emg {
-    inner_read_buffer_size: u32,
-    outer_read_buffer_size: u32,
-    mock_reader_state_buffer_size: u32, 
-    sleep_between_reads_in_seconds: f16, 
+    adc: Option<Mcp3008>,
+    inner_read_buffer_size: usize,
+    outer_read_buffer_size: usize,
+    sleep_between_reads_in_seconds: f32,
     use_mock_adc: bool,
-    adc: Mcp3008
-    // circular buffer
-    // chan0,1
-
+    upper_threshold: f32,
+    lower_threshold: f32
 }
+
 
 pub struct fakeEMG{
     // idk read some data from a csv
 }
 
 impl Resource for Emg {
-    fn init() -> Self {   
-        Emg {
-            inner_read_buffer_size: 2000, // hardcode for now // chekc if we actually need this
+    fn init() -> Self {
+        let adc = Self::start_reading_adc().ok();
+
+        let emg = Emg {
+            adc,
+            inner_read_buffer_size: 2000,
             outer_read_buffer_size: 2000,
-            mock_reader_state_buffer_size: 100, 
-            sleep_between_reads_in_seconds: 0.1, 
+            sleep_between_reads_in_seconds: 0.1,
             use_mock_adc: false,
-            adc: None
+            upper_threshold: None,
+            lower_threshold: None
         };
-        Emg::adc = Emg::start_reading_adc();
-        Emg::calibrate_EMG(&self)
+
+        emg.calibrate_emg();
+        emg
     }
 
     fn name() -> String {
@@ -73,21 +76,34 @@ impl ResourceManager for Manager<Emg> {
 
     /// Handles all EMG-related tasks // is this meant to be for the 
     async fn handle_task(&mut self, channel_data: ManagerChannelData) -> Result<()> {
-        let channel0_value = Emg::read_adc(&self, 0);
-        match channel0_value {
-            // Ok() => // send this to maestro manager
-            // err() => send a 0 or null to maestro manager
-        }
-        
-
-
         let (task, task_data, send_channel) =
             parse_channel_data!(channel_data, Task, EmgData).map_err(|e: Error| e)?;
-        match task {
-            Task::UndefinedTask => todo!(),
-            Task::ProcessDataTask => todo!()
-        }
-        send_channel.send(TASK_SUCCESS.to_string());
+
+        // clear the buffer
+        let res: String = match task {
+            Task::UndefinedTask => {
+                warn!("Encountered an undefined EMG task type");
+                UNDEFINED_TASK.to_string()
+            }
+
+            Task::ProcessDataTask => {
+                match self.resource.read_adc(0) {
+                    Ok(value) => {
+                        info!("EMG ADC Channel 0 value: {}", value);
+                        // TODO: Use value to interpret grip intent and trigger downstream tasks
+                        self.process_data(); 
+                        // if process data, 
+                        TASK_SUCCESS.to_string()
+                    }
+                    Err(e) => {
+                        error!("Failed to read from EMG ADC: {:?}", e);
+                        format!("Failed to read ADC: {}", e)
+                    }
+                }
+            }
+        };
+
+        send_channel.send(res).ok();
         Ok(())
     }
 }
@@ -95,35 +111,32 @@ impl ResourceManager for Manager<Emg> {
 impl Emg{
 
     fn process_data(&self) -> Result<()>{
+        // take in buffer values, if average is greater than calibration
         Ok(())
     }
     
-    fn calibrate_EMG(&self) -> [i32; 2]{
-        let min_value = 0;
-        let max_value = 1023;
-        [min_value, max_value]
+    fn calibrate_emg(&self, channel: u8) -> [i32; 2] {
+        // read and populate the buffer
+        self.read_adc(channel)
+        [0, 1023]
     }
 
-    fn read_adc(&self, channel: u16) -> Result<u16, Mcp3008Error> {
-        // // example read 
-        let adc_value = self.adc.read_channel(channel)?;
-        println!("ADC value on channel {}: {}", channel, adc_value); // adc_value is u16 
-        // while true, append to circular buffer
-    } // need result enum to emit grip state
+    fn read_adc(&self, channel: u8) -> Result<u16, Mcp3008Error> {
+        self.adc
+            .as_ref()
+            .ok_or_else(|| Mcp3008Error::Spi(std::io::Error::new(std::io::ErrorKind::Other, "ADC not initialized")))?
+            .read_channel(channel)
+    }
 
-    fn start_reading_adc() -> Mcp3008{
-        // create spi bus // move this into handle task
+    fn start_reading_adc() -> Result<Mcp3008<Spidev>, Box<dyn std::error::Error>> {
         let mut spi = Spidev::open("/dev/spidev0.0")?;
-
-        let options = SpidevOptions::new() // tweak these
+        let options = spidev::SpidevOptions::new()
             .bits_per_word(8)
-            .max_speed_hz(1_000_000) // 1 MHz
-            .mode(MODE)
+            .max_speed_hz(1_000_000)
+            .mode(spidev::SpiModeFlags::SPI_MODE_0)
             .build();
         spi.configure(&options)?;
-
-        // Create MCP3008 instance
-        let mut adc = Mcp3008::new(spi);
+        Ok(Mcp3008::new(spi))
     }
 
     fn plot_data(&self) -> Result<()>{
