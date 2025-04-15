@@ -115,10 +115,32 @@ impl Emg{
         Ok(())
     }
     
-    fn calibrate_emg(&self, channel: u8) -> [i32; 2] {
+    fn calibrate_emg(&self) -> [i32; 2] {
         // read and populate the buffer
-        self.read_adc(channel)
-        [0, 1023]
+        let inner_buffer = u16[self.inner_read_buffer_size];
+        let outer_buffer = u16[self.inner_read_buffer_size];
+        let i = 0;
+        let j = 0;
+        println!("Flex inner");
+        while inner_buffer[self.inner_read_buffer_size] == None {
+            let adc_cal = self.read_adc(0);
+            match adc_cal{
+                Ok(v) => inner_buffer[i],
+                Err(e) => println!("Error reading adc inner"),
+            }
+            i += 1;
+        }
+        // take average of this   
+        println!("Flex outer");
+        while outer_buffer[self.outer_read_buffer_size] == None {
+            let adc_cal = self.read_adc(1);
+            match adc_cal{
+                Ok(v) => outer_buffer[j],
+                Err(e) => println!("Error reading adc outer"),
+            }
+            j += 1;   
+        }
+        // take average of this
     }
 
     fn read_adc(&self, channel: u8) -> Result<u16, Mcp3008Error> {
