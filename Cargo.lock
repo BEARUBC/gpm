@@ -403,6 +403,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "22ec99545bb0ed0ea7bb9b8e1e9122ea386ff8a48c0922e43f36d45ab09e0e80"
 
 [[package]]
+name = "cyclic_list"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c8c3f224bc7bbe154139701e7063509c4cb6875e053c91427e2060c47e3e1455"
+
+[[package]]
 name = "darwin-libproc"
 version = "0.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -611,6 +617,7 @@ dependencies = [
  "bytes",
  "chrono",
  "console-subscriber",
+ "cyclic_list",
  "embedded-hal",
  "env_logger",
  "http-body-util",

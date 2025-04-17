@@ -30,7 +30,8 @@ use embedded_hal::spi::FullDuplex;
 use embedded_hal::digital::v2::OutputPin;
 use linux_embedded_hal::{Spidev, Pin, SpidevOptions};
 use std::error::Error;
-
+use cyclic_list::List;
+use std::iter::FromIterator;
 
 /// Represents an EMG resource
 pub struct Emg {
@@ -119,6 +120,7 @@ impl Emg{
         // read and populate the buffer
         let inner_buffer = u16[self.inner_read_buffer_size];
         let outer_buffer = u16[self.inner_read_buffer_size];
+        let output = f32[2];
         let i = 0;
         let j = 0;
         println!("Flex inner");
@@ -129,8 +131,9 @@ impl Emg{
                 Err(e) => println!("Error reading adc inner"),
             }
             i += 1;
+            // add delay if needed
         }
-        // take average of this   
+        output[0] = average(inner_buffer);
         println!("Flex outer");
         while outer_buffer[self.outer_read_buffer_size] == None {
             let adc_cal = self.read_adc(1);
@@ -140,7 +143,7 @@ impl Emg{
             }
             j += 1;   
         }
-        // take average of this
+        output[1] = average(outer_buffer)
     }
 
     fn read_adc(&self, channel: u8) -> Result<u16, Mcp3008Error> {
@@ -174,4 +177,11 @@ impl calibrationVisualizer{
     fn init() -> (){
 
     }
+}
+fn average(list: &[f32])-> f32{
+    if list.is_empty() {
+        return 0.0;
+    }
+    let sum: f32 = list.iter().map(|&x| x as f32).sum();
+    sum as f32 / list.len() as f32
 }

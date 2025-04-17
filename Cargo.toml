@@ -30,6 +30,7 @@ spidev = "0.7.0"
 embedded-hal = "1.0.0"
 linux-embedded-hal = "0.4.0"
 plotpy = "1.13.0"
+cyclic_list = "0.1.0"
 
 [build-dependencies]
 prost-build = { version = "0.12" }
