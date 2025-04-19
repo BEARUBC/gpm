@@ -40,8 +40,8 @@ pub struct Emg {
     outer_read_buffer_size: usize,
     sleep_between_reads_in_seconds: f32,
     use_mock_adc: bool,
-    upper_threshold: f32,
-    lower_threshold: f32
+    inner_threshold: f32,
+    outer_threshold: f32,
 }
 
 
@@ -59,11 +59,13 @@ impl Resource for Emg {
             outer_read_buffer_size: 2000,
             sleep_between_reads_in_seconds: 0.1,
             use_mock_adc: false,
-            upper_threshold: None,
-            lower_threshold: None
+            inner_threshold: None,
+            outer_threshold: None,
         };
 
-        emg.calibrate_emg();
+        let thresholds = emg.calibrate_emg();
+        emg.inner_threshold = thresholds[0];
+        emg.outer_threshold = thresholds[1];
         emg
     }
 
@@ -74,7 +76,7 @@ impl Resource for Emg {
 
 impl ResourceManager for Manager<Emg> {
     run!(Emg);
-
+    
     /// Handles all EMG-related tasks // is this meant to be for the 
     async fn handle_task(&mut self, channel_data: ManagerChannelData) -> Result<()> {
         let (task, task_data, send_channel) =
@@ -88,11 +90,18 @@ impl ResourceManager for Manager<Emg> {
             }
 
             Task::ProcessDataTask => {
-                match self.resource.read_adc(0) {
+                match self.resource.read_adc([0, 1]) {
                     Ok(value) => {
                         info!("EMG ADC Channel 0 value: {}", value);
-                        // TODO: Use value to interpret grip intent and trigger downstream tasks
-                        self.process_data(); 
+                        
+                        match self.process_data(value){
+                            Ok(GripState::Open) => {
+                                // send open
+                            }
+                            Ok(GripState::Closed) => {
+                                // send closed
+                            }
+                        }
                         // if process data, 
                         TASK_SUCCESS.to_string()
                     }
@@ -110,10 +119,31 @@ impl ResourceManager for Manager<Emg> {
 }
 
 impl Emg{
+    enum GripState {
+        Open,
+        Closed,
+    }
 
-    fn process_data(&self) -> Result<()>{
-        // take in buffer values, if average is greater than calibration
-        Ok(())
+    fn process_data(values: Vec<f32>, thresholds: &[f32]) -> Result<GripState, Box<dyn std::error::Error>> {
+        if values.len() != thresholds.len() {
+            return Err("Mismatched lengths between values and thresholds".into());
+        }
+
+        if values[0] >= thresholds[0] && values[1] <= thresholds[1]{
+            return Ok(GripState::Open)
+        }
+        else{
+            return Ok(GripState::Closed)
+        }
+        /*else if values[0] <= thresholds[0] && values[1] >= thresholds[1]{
+            return Ok(GripState::Closed)
+        }
+        else if values[0] >= thresholds[0] && values[1] >= thresholds[1]{
+            // do something
+        }
+        else if values[0] <= thresholds[0] && values[1] <= thresholds[1]{
+            // do something
+        }*/
     }
     
     fn calibrate_emg(&self) -> [i32; 2] {
@@ -129,7 +159,7 @@ impl Emg{
             match adc_cal{
                 Ok(v) => inner_buffer[i],
                 Err(e) => println!("Error reading adc inner"),
-            }
+            } 
             i += 1;
             // add delay if needed
         }
@@ -146,11 +176,16 @@ impl Emg{
         output[1] = average(outer_buffer)
     }
 
-    fn read_adc(&self, channel: u8) -> Result<u16, Mcp3008Error> {
-        self.adc
-            .as_ref()
-            .ok_or_else(|| Mcp3008Error::Spi(std::io::Error::new(std::io::ErrorKind::Other, "ADC not initialized")))?
-            .read_channel(channel)
+    fn read_adc(&self, channels: &[u8]) -> Result<Vec<f32>, Mcp3008Error> {
+        let adc = self.adc.as_ref()
+            .ok_or_else(|| Mcp3008Error::Spi(std::io::Error::new(std::io::ErrorKind::Other, "ADC not initialized")))?;
+    
+        let mut output = Vec::with_capacity(channels.len());
+        for &channel_num in channels {
+            let value = adc.read_channel(channel_num)?;
+            output.push(value);
+        }
+        Ok(output)
     }
 
     fn start_reading_adc() -> Result<Mcp3008<Spidev>, Box<dyn std::error::Error>> {
