@@ -26,14 +26,32 @@ use spidev::{Spidev, SpidevOptions, SpidevTransfer, SpiModeFlags};
 use std::char::DecodeUtf16;
 use std::io;
 use mcp3008::Mcp3008;
-use embedded_hal::spi::FullDuplex;
-use embedded_hal::digital::v2::OutputPin;
-use linux_embedded_hal::{Spidev, Pin, SpidevOptions};
-use std::error::Error;
 use cyclic_list::List;
 use std::iter::FromIterator;
 
 /// Represents an EMG resource
+pub struct calibrationVisualizer{
+
+}
+
+impl calibrationVisualizer{
+    fn init() -> (){
+
+    }
+}
+fn average(list: &[f32])-> f32{
+    if list.is_empty() {
+        return 0.0;
+    }
+    let sum: f32 = list.iter().map(|&x| x as f32).sum();
+    sum as f32 / list.len() as f32
+}
+
+enum GripState {
+    Open,
+    Closed,
+}
+
 pub struct Emg {
     adc: Option<Mcp3008>,
     inner_read_buffer_size: usize,
@@ -59,8 +77,8 @@ impl Resource for Emg {
             outer_read_buffer_size: 2000,
             sleep_between_reads_in_seconds: 0.1,
             use_mock_adc: false,
-            inner_threshold: None,
-            outer_threshold: None,
+            inner_threshold: 0.0,
+            outer_threshold: 0.0,
         };
 
         let thresholds = emg.calibrate_emg();
@@ -90,7 +108,7 @@ impl ResourceManager for Manager<Emg> {
             }
 
             Task::ProcessDataTask => {
-                match self.resource.read_adc([0, 1]) {
+                match self.read_adc([0, 1]) {
                     Ok(value) => {
                         info!("EMG ADC Channel 0 value: {}", value);
                         
@@ -119,34 +137,19 @@ impl ResourceManager for Manager<Emg> {
 }
 
 impl Emg{
-    enum GripState {
-        Open,
-        Closed,
-    }
-
-    fn process_data(values: Vec<f32>, thresholds: &[f32]) -> Result<GripState, Box<dyn std::error::Error>> {
-        if values.len() != thresholds.len() {
-            return Err("Mismatched lengths between values and thresholds".into());
+    fn process_data(&self, values: Vec<f32>) -> Result<GripState, Box<dyn std::error::Error>> {
+        if values.len() != 2 {
+            return Err("Expected 2 EMG values".into());
         }
 
-        if values[0] >= thresholds[0] && values[1] <= thresholds[1]{
-            return Ok(GripState::Open)
+        if values[0] >= self.inner_threshold && values[1] <= self.outer_threshold {
+            Ok(GripState::Open)
+        } else {
+            Ok(GripState::Closed)
         }
-        else{
-            return Ok(GripState::Closed)
-        }
-        /*else if values[0] <= thresholds[0] && values[1] >= thresholds[1]{
-            return Ok(GripState::Closed)
-        }
-        else if values[0] >= thresholds[0] && values[1] >= thresholds[1]{
-            // do something
-        }
-        else if values[0] <= thresholds[0] && values[1] <= thresholds[1]{
-            // do something
-        }*/
     }
     
-    fn calibrate_emg(&self) -> [i32; 2] {
+    fn calibrate_emg(&self) -> [f32; 2] {
         // read and populate the buffer
         let inner_buffer = u16[self.inner_read_buffer_size];
         let outer_buffer = u16[self.inner_read_buffer_size];
@@ -204,19 +207,3 @@ impl Emg{
     }
 }
 
-pub struct calibrationVisualizer{
-
-}
-
-impl calibrationVisualizer{
-    fn init() -> (){
-
-    }
-}
-fn average(list: &[f32])-> f32{
-    if list.is_empty() {
-        return 0.0;
-    }
-    let sum: f32 = list.iter().map(|&x| x as f32).sum();
-    sum as f32 / list.len() as f32
-}
