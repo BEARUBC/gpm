@@ -25,7 +25,7 @@ use crate::verify_channel_data;
 use spidev::{Spidev, SpidevOptions, SpidevTransfer, SpiModeFlags};
 use std::char::DecodeUtf16;
 use std::io;
-use mcp3008::Mcp3008;
+use mcp3008::{Mcp3008, Mcp3008Error};
 use cyclic_list::List;
 use std::iter::FromIterator;
 
@@ -39,12 +39,12 @@ impl calibrationVisualizer{
 
     }
 }
-fn average(list: &[f32])-> f32{
+fn average(list: Vec<u16>)-> u16{
     if list.is_empty() {
-        return 0.0;
+        return 0;
     }
-    let sum: f32 = list.iter().map(|&x| x as f32).sum();
-    sum as f32 / list.len() as f32
+    let sum: u16 = list.iter().map(|&x| x as u16).sum();
+    sum as u16 / list.len() as u16
 }
 
 enum GripState {
@@ -58,8 +58,8 @@ pub struct Emg {
     outer_read_buffer_size: usize,
     sleep_between_reads_in_seconds: f32,
     use_mock_adc: bool,
-    inner_threshold: f32,
-    outer_threshold: f32,
+    inner_threshold: u16,
+    outer_threshold: u16,
 }
 
 
@@ -71,14 +71,14 @@ impl Resource for Emg {
     fn init() -> Self {
         let adc = Self::start_reading_adc().ok();
 
-        let emg = Emg {
+        let mut emg = Emg {
             adc,
             inner_read_buffer_size: 2000,
             outer_read_buffer_size: 2000,
             sleep_between_reads_in_seconds: 0.1,
             use_mock_adc: false,
-            inner_threshold: 0.0,
-            outer_threshold: 0.0,
+            inner_threshold: 0,
+            outer_threshold: 0,
         };
 
         let thresholds = emg.calibrate_emg();
@@ -108,7 +108,7 @@ impl ResourceManager for Manager<Emg> {
             }
 
             Task::ProcessDataTask => {
-                match self.read_adc([0, 1]) {
+                match self.read_adc_channels([0, 1]) {
                     Ok(value) => {
                         info!("EMG ADC Channel 0 value: {}", value);
                         
@@ -137,7 +137,7 @@ impl ResourceManager for Manager<Emg> {
 }
 
 impl Emg{
-    fn process_data(&self, values: Vec<f32>) -> Result<GripState, Box<dyn std::error::Error>> {
+    fn process_data(&self, values: Vec<u16>) -> Result<GripState, Box<dyn std::error::Error>> {
         if values.len() != 2 {
             return Err("Expected 2 EMG values".into());
         }
@@ -149,18 +149,18 @@ impl Emg{
         }
     }
     
-    fn calibrate_emg(&self) -> [f32; 2] {
+    fn calibrate_emg(&mut self) -> [u16; 2] {
         // read and populate the buffer
-        let inner_buffer = u16[self.inner_read_buffer_size];
-        let outer_buffer = u16[self.inner_read_buffer_size];
-        let output = f32[2];
-        let i = 0;
-        let j = 0;
+        let mut inner_buffer: Vec<u16> = vec![0; self.inner_read_buffer_size];
+        let mut outer_buffer: Vec<u16> = vec![0; self.outer_read_buffer_size];
+        let mut output: [u16; 2] = [0; 2];
+        let mut i = 0;
+        let mut j = 0;
         println!("Flex inner");
-        while inner_buffer[self.inner_read_buffer_size] == None {
-            let adc_cal = self.read_adc(0);
+        while inner_buffer[self.inner_read_buffer_size] == 0 {
+            let adc_cal = self.read_adc_channel(0);
             match adc_cal{
-                Ok(v) => inner_buffer[i],
+                Ok(v) => inner_buffer[i] = v,
                 Err(e) => println!("Error reading adc inner"),
             } 
             i += 1;
@@ -168,38 +168,36 @@ impl Emg{
         }
         output[0] = average(inner_buffer);
         println!("Flex outer");
-        while outer_buffer[self.outer_read_buffer_size] == None {
-            let adc_cal = self.read_adc(1);
+        while outer_buffer[self.outer_read_buffer_size] == 0 {
+            let adc_cal = self.read_adc_channel(1);
             match adc_cal{
-                Ok(v) => outer_buffer[j],
+                Ok(v) => outer_buffer[j] = v,
                 Err(e) => println!("Error reading adc outer"),
             }
             j += 1;   
         }
-        output[1] = average(outer_buffer)
+        output[1] = average(outer_buffer);
+        return output;
     }
 
-    fn read_adc(&self, channels: &[u8]) -> Result<Vec<f32>, Mcp3008Error> {
-        let adc = self.adc.as_ref()
-            .ok_or_else(|| Mcp3008Error::Spi(std::io::Error::new(std::io::ErrorKind::Other, "ADC not initialized")))?;
-    
+    fn read_adc_channels(&mut self, channels: &[u8]) -> Result<Vec<u16>, Mcp3008Error> {
+        let adc = self.adc.as_mut().unwrap();
         let mut output = Vec::with_capacity(channels.len());
         for &channel_num in channels {
-            let value = adc.read_channel(channel_num)?;
+            let value = adc.read_adc(channel_num)?;
             output.push(value);
         }
         Ok(output)
     }
+    fn read_adc_channel(&mut self, channel: u8) -> Result<u16, Mcp3008Error> {
+        let adc = self.adc.as_mut().unwrap();
+        let output = adc.read_adc(channel);
+        return output;
+    }
 
-    fn start_reading_adc() -> Result<Mcp3008<Spidev>, Box<dyn std::error::Error>> {
-        let mut spi = Spidev::open("/dev/spidev0.0")?;
-        let options = spidev::SpidevOptions::new()
-            .bits_per_word(8)
-            .max_speed_hz(1_000_000)
-            .mode(spidev::SpiModeFlags::SPI_MODE_0)
-            .build();
-        spi.configure(&options)?;
-        Ok(Mcp3008::new(spi))
+    fn start_reading_adc() -> Result<Mcp3008, Mcp3008Error> {
+        let path = "/dev/spidev0.0";
+        Mcp3008::new(path)
     }
 
     fn plot_data(&self) -> Result<()>{
