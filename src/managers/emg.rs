@@ -64,7 +64,7 @@ pub struct fakeEMG{
 
 impl Resource for Emg {
     fn init() -> Self {
-        let adc = Self::start_reading_adc().ok();
+        let adc = start_reading_adc().ok();
 
         let mut emg = Emg {
             adc,
@@ -76,7 +76,7 @@ impl Resource for Emg {
             outer_threshold: 0,
         };
         
-        let thresholds = emg.calibrate_emg(emg.inner_read_buffer_size, emg.outer_read_buffer_size);
+        let thresholds = calibrate_emg(emg.inner_read_buffer_size, emg.outer_read_buffer_size);
         emg.inner_threshold = thresholds[0];
         emg.outer_threshold = thresholds[1];
         emg
@@ -88,7 +88,7 @@ impl Resource for Emg {
 }
 
 impl ResourceManager for Manager<Emg> {
-    run!(Emg);
+    run!(Emg); // note to self, this in an impl block, this doesnt run before handle_task
     
     /// Handles all EMG-related tasks // is this meant to be for the 
     async fn handle_task(&mut self, channel_data: ManagerChannelData) -> Result<()> {
@@ -103,17 +103,12 @@ impl ResourceManager for Manager<Emg> {
             }
 
             Task::Idle => {
-                match self.read_adc_channels([0, 1]) { // self is not an emg object it's the manager
+                match read_adc_channels([0, 1]) { // self is not an emg object it's the manager
                     Ok(value) => {
                         info!("EMG ADC Channel 0 value: {}", value);
                         
-                        match self.process_data(value){
-                            Ok(GripState::Open) => {
-                                // send open
-                            }
-                            Ok(GripState::Closed) => {
-                                // send closed
-                            }
+                        match process_data(value){
+                
                         }
                         // if process data, 
                         TASK_SUCCESS.to_string()
@@ -151,7 +146,7 @@ fn process_data(values: Vec<u16>, inner_threshold: u16, outer_threshold:u16) -> 
     }
 }
     
-fn calibrate_emg(inner_read_buffer_size: usize, outer_read_buffer_size:usize) -> [u16; 2] {
+fn calibrate_emg(inner_read_buffer_size: usize, outer_read_buffer_size:usize, &mut adcOption: Option<Mcp3008>) -> [u16; 2] {
     // read and populate the buffer
     let mut inner_buffer: Vec<u16> = vec![0; inner_read_buffer_size];
     let mut outer_buffer: Vec<u16> = vec![0; outer_read_buffer_size];
@@ -160,7 +155,7 @@ fn calibrate_emg(inner_read_buffer_size: usize, outer_read_buffer_size:usize) ->
     let mut j = 0;
     println!("Flex inner");
     while inner_buffer[inner_read_buffer_size] == 0 {
-        let adc_cal = read_adc_channel(0);
+        let adc_cal = read_adc_channel(0, &mut adcOption);
         match adc_cal{
             Ok(v) => inner_buffer[i] = v,
             Err(e) => println!("Error reading adc inner"),

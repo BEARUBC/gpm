@@ -53,7 +53,7 @@ const PIN_TO_MONITOR: i32 = 2;
 import_sgcp!();
 
 /// Provides boilerplate to initialize a resource manager and run it in its own (green) thread
-macro_rules! init_resource_managers {
+macro_rules! init_resource_managers { // .run is called here for each manager, and things are init'd
     {$($resource:expr => $variant:expr),*} => {{
         let mut map = HashMap::new();
         $(
@@ -98,16 +98,6 @@ async fn start_monitoring_pin(maestro_tx: Sender<ManagerChannelData>) {
     }
 }
 
-async fn receive_EMG(emg_tx: Sender<ManagerChannelData>){
-    info!("Started EMG pin monitor for pin {:?}", PIN_TO_MONITOR);
-    let gpio = Gpio::new().expect("Failed to initialize GPIO");
-    let mut pin = gpio
-        .get(PIN_TO_MONITOR)
-        .expect("Failed to access pin")
-        .into_input_pullup();
-    
-}
-
 /// Main entry point for the bionic arm system.
 /// Initializes all resource managers, telemetry, and starts the TCP server.
 #[tokio::main]
@@ -141,15 +131,6 @@ async fn main() {
         tokio::spawn(async move {
             start_monitoring_pin(maestro_tx).await;
         });
-
-        let emg_tx = manager_channel_map // todo
-            .get(Resource::Emg.as_str_name())
-            .clone();
-        tokio::spawn(async move {
-            start_monitoring_pin(emg_tx).await;
-        });
-
-
     }
     // Start the main TCP server loop to handle incoming connections.
     server::init(manager_channel_map).await;

@@ -41,7 +41,7 @@ pub struct Manager<S: Resource> {
     pub tx: Sender<ManagerChannelData>,
     pub rx: Receiver<ManagerChannelData>,
     /// Holds resource specific metadata
-    metadata: S,
+    metadata: S, // note - can access emg fields from here
 }
 
 impl<S: Resource> Manager<S> {
