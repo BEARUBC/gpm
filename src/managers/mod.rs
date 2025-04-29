@@ -23,6 +23,7 @@ const MAX_MPSC_CHANNEL_BUFFER: usize = 32;
 
 // Resource manager return values
 const TASK_SUCCESS: &str = "Successfully ran task";
+const TASK_FAILURE: &str = "Failed to run task";
 const UNDEFINED_TASK: &str = "Undefined task, did you forget to initialize the message?";
 
 /// Represent a resource manager

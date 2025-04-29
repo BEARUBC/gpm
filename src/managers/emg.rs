@@ -76,7 +76,7 @@ impl Resource for Emg {
             outer_threshold: 0,
         };
         
-        let thresholds = calibrate_emg(emg.inner_read_buffer_size, emg.outer_read_buffer_size);
+        let thresholds = calibrate_emg(emg.inner_read_buffer_size, emg.outer_read_buffer_size, emg.adc);
         emg.inner_threshold = thresholds[0];
         emg.outer_threshold = thresholds[1];
         emg
@@ -103,11 +103,17 @@ impl ResourceManager for Manager<Emg> {
             }
 
             Task::Idle => {
-                match read_adc_channels([0, 1]) { // self is not an emg object it's the manager
+                match read_adc_channels([0, 1], self.metadata.adc) { // self is not an emg object it's the manager
                     Ok(value) => {
                         info!("EMG ADC Channel 0 value: {}", value);
                         
-                        match process_data(value){
+                        match process_data(value, self.metadata.inner_threshold, self.metadata.outer_threshold) {
+                            Ok(grip_state) => {
+                                info!("Grip state: {:?}", grip_state); // send off message to maestro to open/close the hand
+                            }
+                            Err(e) => {
+                                error!("Failed to process EMG data: {:?}", e);
+                            }
                 
                         }
                         // if process data, 
@@ -116,6 +122,7 @@ impl ResourceManager for Manager<Emg> {
                     Err(e) => {
                         error!("Failed to read from EMG ADC: {:?}", e);
                         format!("Failed to read ADC: {}", e)
+                        TASK_FAILURE.to_string()
                     }
                 }
             }
@@ -123,6 +130,7 @@ impl ResourceManager for Manager<Emg> {
                 let thresholds = emg.calibrate_emg(2000, 2000);
                 emg.inner_threshold = thresholds[0];
                 emg.outer_threshold = thresholds[1];
+                TASK_SUCCESS.to_string()
             }
             Task::Abort => {
                 ABORT.to_string()
@@ -166,7 +174,7 @@ fn calibrate_emg(inner_read_buffer_size: usize, outer_read_buffer_size:usize, &m
     output[0] = average(inner_buffer);
     println!("Flex outer");
     while outer_buffer[outer_read_buffer_size] == 0 {
-        let adc_cal = read_adc_channel(1);
+        let adc_cal = read_adc_channel(1, &mut adcOption);
         match adc_cal{
             Ok(v) => outer_buffer[j] = v,
             Err(e) => println!("Error reading adc outer"),
@@ -176,6 +184,7 @@ fn calibrate_emg(inner_read_buffer_size: usize, outer_read_buffer_size:usize, &m
     output[1] = average(outer_buffer);
     return output;
 }
+
 fn read_adc_channels(channels: &[u8], &mut adcOption: Option<Mcp3008>) -> Result<Vec<u16>, Mcp3008Error> {
     let adc = adcOption.as_mut().unwrap();
     let mut output = Vec::with_capacity(channels.len());

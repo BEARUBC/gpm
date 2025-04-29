@@ -35,7 +35,7 @@ use crate::sgcp::maestro::*;
 use crate::todo;
 use crate::verify_channel_data;
 
-macro_rules! set_target { // what is this
+macro_rules! set_target { 
     ($metadata:expr, $($channel:ident => $target:ident),*) => {
         $metadata.controller.set_target($channel, $target).unwrap();
     };
