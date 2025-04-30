@@ -29,6 +29,11 @@ use mcp3008::{Mcp3008, Mcp3008Error};
 use cyclic_list::List;
 use std::iter::FromIterator;
 
+const DEFAULT_BUFFER_SIZE: usize = 2000;
+const DEFAULT_SLEEP_SECONDS: f32 = 0.1;
+const SPI_DEVICE_PATH: &str = "/dev/spidev0.0";
+
+
 /// Represents an EMG resource
 pub struct calibrationVisualizer{
 
@@ -39,14 +44,15 @@ impl calibrationVisualizer{
 
     }
 }
-fn average(list: Vec<u16>)-> u16{
+fn average(list: &[u16]) -> Result<u16, &'static str> {
     if list.is_empty() {
-        return 0;
+        Err("Cannot calculate average of an empty list")
+    } else {
+        Ok(list.iter().sum::<u16>() / list.len() as u16)
     }
-    let sum: u16 = list.iter().map(|&x| x as u16).sum();
-    sum as u16 / list.len() as u16
 }
 
+#[derive(Debug, Default)]
 pub struct Emg {
     adc: Option<Mcp3008>,
     inner_read_buffer_size: usize,
@@ -68,9 +74,9 @@ impl Resource for Emg {
 
         let mut emg = Emg {
             adc,
-            inner_read_buffer_size: 2000,
-            outer_read_buffer_size: 2000,
-            sleep_between_reads_in_seconds: 0.1,
+            inner_read_buffer_size: DEFAULT_BUFFER_SIZE,
+            outer_read_buffer_size: DEFAULT_BUFFER_SIZE,
+            sleep_between_reads_in_seconds: DEFAULT_SLEEP_SECONDS,
             use_mock_adc: false,
             inner_threshold: 0,
             outer_threshold: 0,
@@ -98,7 +104,7 @@ impl ResourceManager for Manager<Emg> {
         // clear the buffer
         let res: String = match task {
             Task::UndefinedTask => {
-                warn!("Encountered an undefined EMG task type");
+                warn!("Encountered an undefined EMG task type: {:?}", task);
                 UNDEFINED_TASK.to_string()
             }
 
@@ -109,7 +115,7 @@ impl ResourceManager for Manager<Emg> {
                         
                         match process_data(value, self.metadata.inner_threshold, self.metadata.outer_threshold) {
                             Ok(grip_state) => {
-                                info!("Grip state: {:?}", grip_state); // send off message to maestro to open/close the hand
+                                info!("Grip state: {:?}", grip_state); // send off message to maestro to open/close the hand HOW 
                             }
                             Err(e) => {
                                 error!("Failed to process EMG data: {:?}", e);
@@ -121,13 +127,13 @@ impl ResourceManager for Manager<Emg> {
                     }
                     Err(e) => {
                         error!("Failed to read from EMG ADC: {:?}", e);
-                        format!("Failed to read ADC: {}", e)
+                        format!("Failed to read ADC: {}", e);
                         TASK_FAILURE.to_string()
                     }
                 }
             }
             Task::Calibrate => {
-                let thresholds = emg.calibrate_emg(2000, 2000);
+                let thresholds = emg.calibrate_emg(DEFAULT_BUFFER_SIZE, DEFAULT_BUFFER_SIZE);
                 emg.inner_threshold = thresholds[0];
                 emg.outer_threshold = thresholds[1];
                 TASK_SUCCESS.to_string()
@@ -142,6 +148,7 @@ impl ResourceManager for Manager<Emg> {
     }
 }
 
+// replace gripstate with integer or something
 fn process_data(values: Vec<u16>, inner_threshold: u16, outer_threshold:u16) -> Result<GripState, Box<dyn std::error::Error>> {
     if values.len() != 2 {
         return Err("Expected 2 EMG values".into());
@@ -184,23 +191,38 @@ fn calibrate_emg(inner_read_buffer_size: usize, outer_read_buffer_size:usize, &m
     output[1] = average(outer_buffer);
     return output;
 }
-
-fn read_adc_channels(channels: &[u8], &mut adcOption: Option<Mcp3008>) -> Result<Vec<u16>, Mcp3008Error> {
-    let adc = adcOption.as_mut().unwrap();
-    let mut output = Vec::with_capacity(channels.len());
-    for &channel_num in channels {
-        let value = adc.read_adc(channel_num)?;
-        output.push(value);
-    }
-    Ok(output)
+fn calibrate_emg(inner_size: usize, outer_size: usize, adc_option: &mut Option<Mcp3008>) -> [u16; 2] {
+    let inner_buffer = read_adc_buffer(0, inner_size, adc_option);
+    let outer_buffer = read_adc_buffer(1, outer_size, adc_option);
+    [average(inner_buffer), average(outer_buffer)]
 }
+fn read_adc_buffer(channel: u8, size: usize, adc_option: &mut Option<Mcp3008>) -> Vec<u16> {
+    let mut buffer = Vec::with_capacity(size);
+    while buffer.len() < size {
+        if let Ok(value) = read_adc_channel(channel, adc_option) {
+            buffer.push(value);
+        }
+    }
+    buffer
+}
+
+fn read_adc_channels(channels: &[u8], adc_option: &mut Option<Mcp3008>) -> Result<Vec<u16>, Mcp3008Error> {
+    let adc = adc_option.as_mut().ok_or_else(|| Mcp3008Error::new("ADC not initialized"))?;
+    channels.iter().map(|&channel| adc.read_adc(channel)).collect()
+}
+
 fn read_adc_channel(channel: u8, &mut adcOption: Option<Mcp3008>) -> Result<u16, Mcp3008Error> {
-    let adc = adcOption.as_mut().unwrap();
+    let adc = adcOption.as_mut().ok_or_else(|| Mcp3008Error::new("ADC not initialized"))?;
     let output = adc.read_adc(channel);
     return output;
 }
 
+async fn read_adc_channel_async(channel: u8, adc_option: &mut Option<Mcp3008>) -> Result<u16, Mcp3008Error> {
+    let adc = adc_option.as_mut().ok_or_else(|| Mcp3008Error::new("ADC not initialized"))?;
+    tokio::task::spawn_blocking(move || adc.read_adc(channel)).await?
+}
+
 fn start_reading_adc() -> Result<Mcp3008, Mcp3008Error> {
-    let path = "/dev/spidev0.0";
+    let path = SPI_DEVICE_PATH;
     Mcp3008::new(path)
 }
