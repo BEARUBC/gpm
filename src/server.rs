@@ -1,4 +1,5 @@
 use std::sync::Arc;
+use std::collections::HashMap;
 
 use anyhow::Error;
 use anyhow::Result;
@@ -6,10 +7,13 @@ use log::error;
 use log::info;
 use log::warn;
 use request::TaskData::*;
+use tokio::time::{interval, Duration};
 use tokio::net::TcpListener;
 use tokio::net::TcpStream;
 use tokio::sync::oneshot;
 use tokio::sync::Semaphore;
+use tokio::sync::mpsc::Sender;
+use tokio::sync::mpsc;
 
 use crate::config::GPM_TCP_ADDR;
 use crate::config::MAX_CONCURRENT_CONNECTIONS;
@@ -19,9 +23,11 @@ use crate::managers::ManagerChannelData;
 use crate::retry;
 use crate::sgcp::*;
 use crate::ManagerChannelMap;
+use crate::Resource;
+use crate::Request;
 
 /// Provides the boilerplate to setup routing required to send tasks to the appropriate
-/// resource manager
+/// resource manager // keep for internal
 macro_rules! dispatch_task {
     {$request:ident, $($variant:pat => $channel:expr),*} => {{
         let resource_key = $request.resource().as_str_name();
@@ -54,7 +60,7 @@ macro_rules! dispatch_task {
 }
 
 /// Starts the main TCP listener loop -- can handle at most MAX_CONCURRENT_CONNECTIONS connections
-/// at any given time
+/// at any given time // tcp - dont need
 pub async fn init(manager_channel_map: ManagerChannelMap) {
     let listener = TcpListener::bind(GPM_TCP_ADDR).await.unwrap();
     let sem = Arc::new(Semaphore::new(MAX_CONCURRENT_CONNECTIONS));
@@ -87,7 +93,7 @@ pub async fn init(manager_channel_map: ManagerChannelMap) {
 }
 
 /// Reads protobufs from the underlying stream and dispatches tasks to the appropriate
-/// resource manager
+/// resource manager // reads from tcpstream
 async fn handle_connection(mut stream: TcpStream, map: &ManagerChannelMap) -> Result<()> {
     let mut conn = Connection::new(stream);
     loop {
@@ -127,7 +133,7 @@ async fn handle_connection(mut stream: TcpStream, map: &ManagerChannelMap) -> Re
     Ok(())
 }
 
-/// Dispatches a request to the appropiate resource manager. Returns the response from the task.
+/// Dispatches a request to the appropiate resource manager. Returns the response from the task. // keep for internal
 pub async fn dispatch_task(
     request: Request,
     manager_channel_map: &ManagerChannelMap,
@@ -139,3 +145,69 @@ pub async fn dispatch_task(
         Resource::Maestro => manager_channel_map.get(Resource::Maestro.as_str_name())
     )
 }
+
+/// Starts the main internal task dispatch loop for the bionic arm system.
+/// Periodically sends tasks to resource managers without relying on TCP.
+pub async fn init_internal(manager_channel_map: ManagerChannelMap, mut request_rx: mpsc::Receiver<Request>) {
+    use tokio::time::{sleep, Duration};
+
+    info!("Starting internal task dispatch loop...");
+
+    // run manager init tasks for each resournce manager
+    // Construct a sample request - example
+    let EMG_init_request = Request {
+        resource: Resource::Emg as i32, // or use Resource::Bms directly if no conversion needed
+        task_code: "CALIBRATE".to_string(),
+        task_data: None,
+    };
+
+
+    while let Some(request) = request_rx.recv().await {
+        match handle_task(request, &manager_channel_map).await {
+            Ok(response) => info!("Task succeeded: {:?}", response),
+            Err(e) => error!("Task failed: {:?}", e),
+        }
+    }
+}
+
+
+pub async fn handle_task(request: Request, map: &ManagerChannelMap) -> Result<String> {
+    dispatch_task!(
+        request,
+        Resource::Bms => map.get(Resource::Bms.as_str_name()),
+        Resource::Emg => map.get(Resource::Emg.as_str_name()),
+        Resource::Maestro => map.get(Resource::Maestro.as_str_name())
+    )
+}
+
+// event-driven task generation
+// This function is responsible for monitoring events and generating requests
+// based on those events. It uses a timer to trigger periodic tasks and
+// simulates an event-driven architecture.
+pub async fn monitor_events(manager_channel_map: ManagerChannelMap) {
+    let mut EMG_idle = interval(Duration::from_millis(2)); // 500 Hz sampling rate
+
+    loop {
+        tokio::select! {
+            _ = EMG_idle.tick() => {
+                // Trigger a periodic maintenance task
+                let request = Request {
+                    resource: Resource::Emg as i32,
+                    task_code: "IDLE".to_string(),
+                    task_data: None,
+                };
+                if let Err(err) = dispatch_task(request, &manager_channel_map).await {
+                    log::error!("Failed to dispatch maintenance task: {:?}", err);
+                }
+            }
+        }
+    }
+}
+
+async fn check_battery_level() {
+    // Simulate checking battery level
+    tokio::time::sleep(Duration::from_secs(30)).await; // Example delay
+    log::info!("Battery level is low, triggering alert...");
+}
+
+

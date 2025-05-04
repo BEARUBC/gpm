@@ -7,7 +7,7 @@ mod connection; // Handles TCP connection framing and data transmission
 mod exporter; // Telemetry exporter for system metrics
 mod macros; // Utility macros for common functionality
 mod managers; // Resource management framework
-mod server; // Main server loop and task routing
+mod server;
 
 use std::any::Any;
 use std::collections::HashMap;
@@ -116,22 +116,30 @@ async fn main() {
         Resource::Maestro => Manager::<Maestro>::new()
     };
 
-    // Spawn the telemetry exporter as an independent async task.
-    tokio::spawn(async {
-        let mut exporter = Exporter::new();
-        exporter.init().await
+    // Create a channel for internal task requests
+    let (request_tx, request_rx) = tokio::sync::mpsc::channel(100);
+
+    // Clone the manager channel map for each spawned task
+    let internal_map_1 = manager_channel_map.clone();
+    let internal_map_2 = manager_channel_map.clone();
+    let internal_map_3 = manager_channel_map.clone();
+
+    // Start the internal dispatcher that handles internal tasks
+    tokio::spawn(async move {
+        server::init_internal(internal_map_1, request_rx).await;
     });
 
-    // If running on Raspberry Pi, start monitoring GPIO pins for muscle activity.
-    #[cfg(feature = "pi")]
-    {
-        let maestro_tx = manager_channel_map
-            .get(Resource::Maestro.as_str_name())
-            .clone();
-        tokio::spawn(async move {
-            start_monitoring_pin(maestro_tx).await;
-        });
+    // Start constant loop - creates requests every X seconds depending on manager
+    tokio::spawn(async move {
+        server::monitor_events(internal_map_2).await;    
+    });
+    
+
+    // Keep the runtime alive indefinitely
+    loop {
+        tokio::time::sleep(tokio::time::Duration::from_secs(3600)).await;
     }
-    // Start the main TCP server loop to handle incoming connections.
-    server::init(manager_channel_map).await;
+
+
+    
 }
