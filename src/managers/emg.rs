@@ -109,7 +109,16 @@ impl ResourceManager for Manager<Emg> {
                         info!("EMG ADC Channel 0 value: {:?}", value);
                         match process_data(value, self.metadata.inner_threshold, self.metadata.outer_threshold) {
                             Ok(grip_state) => {
-                                info!("Grip state: {:?}", grip_state); // send off message to maestro to open/close the hand HOW 
+                                info!("Grip state: {:?}", grip_state); // send off message to maestro to open/close the hand HOW
+                                if grip_state == 1 {
+                                    // open hand
+                                    info!("Opening hand");
+                                    "OPEN HAND".to_string();
+                                } else {
+                                    // close hand
+                                    info!("Closing hand");
+                                    "CLOSE HAND".to_string();
+                                }
                             }
                             Err(e) => {
                                 error!("Failed to process EMG data: {:?}", e);

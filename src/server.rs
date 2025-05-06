@@ -184,21 +184,51 @@ pub async fn handle_task(request: Request, map: &ManagerChannelMap) -> Result<St
 // This function is responsible for monitoring events and generating requests
 // based on those events. It uses a timer to trigger periodic tasks and
 // simulates an event-driven architecture.
+async fn handle_emg_idle_response(response: &str, manager_channel_map: &ManagerChannelMap) {
+    let (task_code, resource) = match response {
+        "OPEN HAND" => ("OPEN_FIST", Resource::Maestro),
+        "CLOSE HAND" => ("CLOSE_FIST", Resource::Maestro),
+        _ => {
+            error!("Unexpected response: {}", response);
+            return;
+        }
+    };
+
+    let request = Request {
+        resource: resource as i32,
+        task_code: task_code.to_string(),
+        task_data: None,
+    };
+
+    match dispatch_task(request, manager_channel_map).await {
+        Ok(res) => info!("Task succeeded: {:?}", res),
+        Err(e) => error!("Task failed: {:?}", e),
+    }
+}
+
+async fn process_emg_idle_task(manager_channel_map: &ManagerChannelMap) {
+    let request = Request {
+        resource: Resource::Emg as i32,
+        task_code: "IDLE".to_string(),
+        task_data: None,
+    };
+
+    match dispatch_task(request, manager_channel_map).await {
+        Ok(res) => handle_emg_idle_response(res.as_str(), manager_channel_map).await,
+        Err(err) => {
+            error!("An error occurred when dispatching task; error={err}");
+            log::error!("Failed to dispatch maintenance task: {:?}", err);
+        }
+    }
+}
+
 pub async fn monitor_events(manager_channel_map: ManagerChannelMap) {
     let mut EMG_idle = interval(Duration::from_millis(2)); // 500 Hz sampling rate
 
     loop {
         tokio::select! {
             _ = EMG_idle.tick() => {
-                // Trigger a periodic maintenance task
-                let request = Request {
-                    resource: Resource::Emg as i32,
-                    task_code: "IDLE".to_string(),
-                    task_data: None,
-                };
-                if let Err(err) = dispatch_task(request, &manager_channel_map).await {
-                    log::error!("Failed to dispatch maintenance task: {:?}", err);
-                }
+                process_emg_idle_task(&manager_channel_map).await;
             }
         }
     }
