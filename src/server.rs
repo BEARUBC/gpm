@@ -148,19 +148,12 @@ pub async fn dispatch_task(
 
 /// Starts the main internal task dispatch loop for the bionic arm system.
 /// Periodically sends tasks to resource managers without relying on TCP.
-pub async fn init_internal(manager_channel_map: ManagerChannelMap, mut request_rx: mpsc::Receiver<Request>) {
+pub async fn cli_input(manager_channel_map: ManagerChannelMap, mut request_rx: mpsc::Receiver<Request>) {
     use tokio::time::{sleep, Duration};
 
     info!("Starting internal task dispatch loop...");
 
-    // run manager init tasks for each resournce manager
-    // Construct a sample request - example
-    let EMG_init_request = Request {
-        resource: Resource::Emg as i32, // or use Resource::Bms directly if no conversion needed
-        task_code: "CALIBRATE".to_string(),
-        task_data: None,
-    };
-
+    // open channel for cli commands
 
     while let Some(request) = request_rx.recv().await {
         match handle_task(request, &manager_channel_map).await {
@@ -201,7 +194,7 @@ async fn handle_emg_idle_response(response: &str, manager_channel_map: &ManagerC
     };
 
     match dispatch_task(request, manager_channel_map).await {
-        Ok(res) => info!("Task succeeded: {:?}", res),
+        Ok(res) => info!("Task succeeded: {:?}", res), // need to return a string here
         Err(e) => error!("Task failed: {:?}", e),
     }
 }
@@ -222,6 +215,7 @@ async fn process_emg_idle_task(manager_channel_map: &ManagerChannelMap) {
     }
 }
 
+// idle tasks
 pub async fn monitor_events(manager_channel_map: ManagerChannelMap) {
     let mut EMG_idle = interval(Duration::from_millis(2)); // 500 Hz sampling rate
 
@@ -234,10 +228,5 @@ pub async fn monitor_events(manager_channel_map: ManagerChannelMap) {
     }
 }
 
-async fn check_battery_level() {
-    // Simulate checking battery level
-    tokio::time::sleep(Duration::from_secs(30)).await; // Example delay
-    log::info!("Battery level is low, triggering alert...");
-}
-
+// implement command line interface to manually trigger tasks
 

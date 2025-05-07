@@ -122,11 +122,10 @@ async fn main() {
     // Clone the manager channel map for each spawned task
     let internal_map_1 = manager_channel_map.clone();
     let internal_map_2 = manager_channel_map.clone();
-    let internal_map_3 = manager_channel_map.clone();
 
-    // Start the internal dispatcher that handles internal tasks
+    // Start the internal dispatcher that handles initial internal tasks
     tokio::spawn(async move {
-        server::init_internal(internal_map_1, request_rx).await;
+        server::cli_input(internal_map_1, request_rx).await;
     });
 
     // Start constant loop - creates requests every X seconds depending on manager
