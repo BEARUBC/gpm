@@ -113,6 +113,7 @@ impl ResourceManager for Manager<Maestro> {
                     TASK_SUCCESS.to_string()
                 }
             },
+            //TODO @krishaiquin: add arms for tasks HAPTICS_ON and HAPTICS_OFF
         };
         send_channel.send(res);
         Ok(())
