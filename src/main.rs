@@ -123,7 +123,7 @@ async fn main() {
     let internal_map_1 = manager_channel_map.clone();
     let internal_map_2 = manager_channel_map.clone();
 
-    // Start the internal dispatcher that handles initial internal tasks
+    // Start the internal dispatcher that handles tasks via command line input
     tokio::spawn(async move {
         server::cli_input(internal_map_1, request_rx).await;
     });
