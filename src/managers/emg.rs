@@ -137,6 +137,7 @@ impl ResourceManager for Manager<Emg> {
             }
             Task::Calibrate => {
                 let thresholds = calibrate_emg(DEFAULT_BUFFER_SIZE, DEFAULT_BUFFER_SIZE, &mut self.metadata.adc);
+                // add error handling for thresholds
                 self.metadata.inner_threshold = thresholds[0];
                 self.metadata.outer_threshold = thresholds[1];
                 TASK_SUCCESS.to_string()

@@ -148,7 +148,7 @@ pub async fn dispatch_task(
 
 /// Starts the main internal task dispatch loop for the bionic arm system.
 /// Periodically sends tasks to resource managers without relying on TCP.
-pub async fn cli_input(manager_channel_map: ManagerChannelMap, mut request_rx: mpsc::Receiver<Request>) {
+pub async fn cli_input(manager_channel_map: ManagerChannelMap) {
     use tokio::time::{sleep, Duration};
     use std::io::{self, Write};
 
@@ -189,10 +189,10 @@ pub async fn cli_input(manager_channel_map: ManagerChannelMap, mut request_rx: m
         let task_data = if parts.len() > 2 {
             match resource {
             x if x == Resource::Bms as i32 => {
-                None // Add appropriate handling for Bms if needed
+                None // add for when BMS task is implemented that requires task data
             }
             x if x == Resource::Emg as i32 => {
-                None // Add appropriate handling for Emg if needed
+                None // add for when EMG task is implemented that requires task data
             }
             x if x == Resource::Maestro as i32 => {
                 let targets: Vec<i32> = parts[2..]

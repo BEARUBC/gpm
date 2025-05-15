@@ -117,22 +117,26 @@ async fn main() {
     };
 
     // Create a channel for internal task requests
-    let (request_tx, request_rx) = tokio::sync::mpsc::channel(100);
+    let (request_tx, request_rx) = tokio::sync::mpsc::channel::<Request>(100);
 
     // Clone the manager channel map for each spawned task
     let internal_map_1 = manager_channel_map.clone();
     let internal_map_2 = manager_channel_map.clone();
 
-    // Start the internal dispatcher that handles tasks via command line input
-    tokio::spawn(async move {
-        server::cli_input(internal_map_1, request_rx).await;
-    });
+    // run initialization tasks
 
+    // Start the internal dispatcher that handles tasks via command line input 
+    
+    tokio::spawn(async move {
+        server::cli_input(internal_map_1).await;
+    });
+    
+    /* 
     // Start constant loop - creates requests every X seconds depending on manager
     tokio::spawn(async move {
         server::monitor_events(internal_map_2).await;    
     });
-    
+    */
 
     // Keep the runtime alive indefinitely
     loop {
