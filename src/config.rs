@@ -79,7 +79,7 @@ const BYLINE: &str = "Developed at UBC Bionics (http://www.ubcbionics.com)";
 const NEW_LINE: &str = "\n";
 
 /// Initializes env_logger and prints metadata
-pub fn init() {
+pub fn logger_init() {
     env_logger::builder().filter_level(LOG_LEVEL).init();
     println!("{}", GRASP_ASCII);
     println!("{}", VERSION_LINE);

@@ -5,7 +5,8 @@
 mod config; // Configuration settings (e.g., TCP address, buffer sizes)
 mod connection; // Handles TCP connection framing and data transmission
 mod exporter; // Telemetry exporter for system metrics
-mod gpio_monitor;
+mod gpio_monitor; // Provides an alternate strategy for dispatching commands based on GPIO pin
+// state
 mod macros; // Utility macros for common functionality
 mod managers; // Resource management framework
 mod server; // Main server loop and task routing
@@ -28,8 +29,6 @@ use managers::Emg;
 use managers::Maestro;
 use managers::ManagerChannelData;
 use prost::Message;
-#[cfg(feature = "pi")]
-use rppal::gpio::{Gpio, InputPin};
 use tokio::io::AsyncReadExt;
 use tokio::io::AsyncWriteExt;
 use tokio::net::TcpListener;
@@ -67,13 +66,9 @@ macro_rules! init_resource_managers {
 /// Initializes all resource managers, telemetry, and starts the TCP server.
 #[tokio::main]
 async fn main() {
-    // Initialize the logger for detailed runtime diagnostics.
     #[cfg(feature = "dev")]
-    console_subscriber::init();
-
-    // Load configuration settings (e.g., logging level, server addresses).
-    config::init();
-    let command_dispatch_strategy = Config::global().command_dispatch_strategy;
+    console_subscriber::init(); // Used for Tokio runtime diagnostics
+    config::logger_init();
 
     // Initialize resource managers and their communication channels.
     let manager_channel_map = init_resource_managers! {
@@ -88,7 +83,7 @@ async fn main() {
         exporter.init().await
     });
 
-    match command_dispatch_strategy {
+    match Config::global().command_dispatch_strategy {
         CommandDispatchStrategy::Server => server::init(manager_channel_map).await,
         CommandDispatchStrategy::GpioMonitor => {
             tokio::spawn(async move {
