@@ -14,16 +14,16 @@ use anyhow::Result;
 use chrono::DateTime;
 use chrono::Utc;
 use http_body_util::Full;
+use hyper::Request;
+use hyper::Response;
 use hyper::body::Bytes;
 use hyper::server::conn::http1;
 use hyper::service::service_fn;
-use hyper::Request;
-use hyper::Response;
 use hyper_util::rt::TokioIo;
 use log::*;
-use prometheus_client::encoding::text::encode;
 use prometheus_client::encoding::EncodeLabelSet;
 use prometheus_client::encoding::EncodeLabelValue;
+use prometheus_client::encoding::text::encode;
 use prometheus_client::metrics::counter::Atomic;
 use prometheus_client::metrics::counter::Counter;
 use prometheus_client::metrics::family::Family;
@@ -87,9 +87,8 @@ impl Exporter {
     /// TODO: @krarpit telemetry needs access to manager channel map in order to probe resource
     /// health                this needs to be cleaned up and tested
     pub async fn init(&mut self) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-        let config = Config::global();
-        let server_config = config.server.as_ref().unwrap();
-        let telemetry_config = config.telemetry.as_ref().unwrap();
+        let server_config = Config::global().server.as_ref().unwrap();
+        let telemetry_config = Config::global().telemetry.as_ref().unwrap();
         let listener = TcpListener::bind(telemetry_config.address.clone())
             .await
             .unwrap();

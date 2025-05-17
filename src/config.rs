@@ -19,9 +19,30 @@ pub struct TelemetryConfig {
 }
 
 #[derive(Debug, Deserialize)]
+pub struct GpioMonitorConfig {
+    pub pin: i32,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum CommandDispatchStrategy {
+    Server,
+    GpioMonitor,
+}
+
+impl Default for CommandDispatchStrategy {
+    fn default() -> Self {
+        CommandDispatchStrategy::Server
+    }
+}
+
+#[derive(Debug, Deserialize)]
 pub struct Config {
     pub server: Option<ServerConfig>,
     pub telemetry: Option<TelemetryConfig>,
+    pub gpio_monitor: Option<GpioMonitorConfig>,
+    #[serde(default)]
+    pub command_dispatch_strategy: CommandDispatchStrategy,
 }
 
 static CONFIG: OnceLock<Config> = OnceLock::new();

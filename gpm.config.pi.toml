@@ -1,11 +1,15 @@
+command_dispatch_strategy = "server"
+
 [server]
 max_concurrent_connections = 1
 address = "0.0.0.0:4760"
 read_buffer_capacity_in_bytes = 1024
 frame_prefix_length_in_bytes = 8
 
+[gpio_monitor]
+pin = 2
+
 [telemetry]
 address = "0.0.0.0:9999"
 tick_interval_in_seconds = 1 
-max_ticks = 5
 
