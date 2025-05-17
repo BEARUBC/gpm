@@ -17,6 +17,6 @@ RUN apt-get update && apt-get install -y protobuf-compiler
 
 RUN cargo build --release
 
-FROM rust:1.87-slim
+FROM debian:bookworm-slim 
 COPY --from=build /gpm/target/release/gpm .
 CMD ["./gpm"]
