@@ -5,6 +5,21 @@ This repository contains the source code for the primary software module of the 
 The purpose of the GPM is to manage all systems of the arm. It essentially serves as an asynchronous, non-blocking task scheduler. Some example tasks include BMS monitoring, EMG processing, servo motor controls and overall system health monitoring. It is based on Tokio's "task" asbtraction (a.k.a green threads). This design decision was made to avoid the overhead of OS-level threads given that GPM runs on the single-core Raspberry Pi Zero.
 
 ## Installation
+
+#### Using Docker
+```bash
+# After cloning the repository, run the following commands to initialize the `sgcp` submodule
+git submodule init
+git submodule update
+
+# Build the Docker image
+docker build -t gpm .
+
+# Run the container
+docker run --rm -it gpm
+```
+
+#### Manual Installation 
 ```bash
 # After cloning the repository, run the following commands to initialize the `sgcp` submodule
 git submodule init
