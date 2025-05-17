@@ -15,7 +15,6 @@ pub struct ServerConfig {
 pub struct TelemetryConfig {
     pub address: String,
     pub tick_interval_in_seconds: i32,
-    pub max_ticks: i32,
 }
 
 #[derive(Debug, Deserialize)]
