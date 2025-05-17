@@ -11,9 +11,6 @@ git submodule init
 git submodule update
 
 # Install rust on your system by following these instructions: https://www.rust-lang.org/tools/install
-# You would need to install the nightly rust compiler -- run the following commands:
-rustup toolchain install nightly
-rustup default nightly
 
 # Finally, start GPM
 cd <REPOSITORY>

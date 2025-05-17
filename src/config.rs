@@ -1,4 +1,4 @@
-use std::env::set_var;
+use log::LevelFilter;
 
 // GPM TCP listener configs
 pub const MAX_CONCURRENT_CONNECTIONS: usize = 1;
@@ -18,8 +18,7 @@ pub const TELEMETRY_TICK_INTERVAL_IN_SECONDS: u64 = 1;
 pub const TELEMETRY_MAX_TICKS: usize = 5;
 
 // Logging configs and constants
-const RUST_LOG_KEY: &str = "RUST_LOG";
-const LOG_LEVEL: &str = "trace";
+const LOG_LEVEL: LevelFilter = LevelFilter::Trace;
 const GRASP_ASCII: &str = r"
    ______                    
   / ____/________ __________ 
@@ -33,8 +32,7 @@ const NEW_LINE: &str = "\n";
 
 /// Initializes env_logger and prints metadata
 pub fn init() {
-    set_var(RUST_LOG_KEY, LOG_LEVEL);
-    env_logger::init();
+    env_logger::builder().filter_level(LOG_LEVEL).init();
     println!("{}", GRASP_ASCII);
     println!("{}", VERSION_LINE);
     println!("{}", BYLINE);
