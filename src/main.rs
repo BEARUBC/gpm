@@ -16,8 +16,6 @@ use std::sync::Arc;
 
 use anyhow::Result;
 use bytes::BytesMut;
-use config::GPM_TCP_ADDR;
-use config::MAX_CONCURRENT_CONNECTIONS;
 use connection::Connection;
 use exporter::Exporter;
 use log::*;

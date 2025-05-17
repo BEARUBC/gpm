@@ -11,8 +11,7 @@ use tokio::net::TcpStream;
 use tokio::sync::oneshot;
 use tokio::sync::Semaphore;
 
-use crate::config::GPM_TCP_ADDR;
-use crate::config::MAX_CONCURRENT_CONNECTIONS;
+use crate::config::Config;
 use crate::connection::Connection;
 use crate::import_sgcp;
 use crate::managers::ManagerChannelData;
@@ -56,9 +55,14 @@ macro_rules! dispatch_task {
 /// Starts the main TCP listener loop -- can handle at most MAX_CONCURRENT_CONNECTIONS connections
 /// at any given time
 pub async fn init(manager_channel_map: ManagerChannelMap) {
-    let listener = TcpListener::bind(GPM_TCP_ADDR).await.unwrap();
-    let sem = Arc::new(Semaphore::new(MAX_CONCURRENT_CONNECTIONS));
-    info!("GPM server listening on {:?}", GPM_TCP_ADDR);
+    let server_config = Config::global().server.as_ref().unwrap();
+    let listener = TcpListener::bind(server_config.address.clone())
+        .await
+        .unwrap();
+    let sem = Arc::new(Semaphore::new(
+        server_config.max_concurrent_connections as usize,
+    ));
+    info!("GPM server listening on {:?}", server_config.address);
     loop {
         let sem_clone = Arc::clone(&sem);
         let (stream, client_addr) = match listener.accept().await {
@@ -80,7 +84,7 @@ pub async fn init(manager_channel_map: ManagerChannelMap) {
                 info!("Accpeted new remote connection from host={:?}", client_addr);
                 handle_connection(stream, &send_channel_map).await.unwrap();
             } else {
-                error!("Rejected new remote connection from host={:?}, currently serving maximum_clients={:?}", client_addr, MAX_CONCURRENT_CONNECTIONS);
+                error!("Rejected new remote connection from host={:?}, currently serving maximum_clients={:?}", client_addr, server_config.max_concurrent_connections);
             }
         });
     }
