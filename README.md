@@ -8,9 +8,9 @@ The purpose of the GPM is to manage all systems of the arm. It essentially serve
 
 #### Using Docker
 ```bash
-# Clone the repository (with submodules)
-git clone --recurse-submodules https://github.com/BEARUBC/gpm.git
-cd gpm
+# After cloning the repository, run the following commands to initialize the `sgcp` submodule
+git submodule init
+git submodule update
 
 # Build the Docker image
 docker build -t gpm .
