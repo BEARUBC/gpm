@@ -22,7 +22,6 @@ use config::CommandDispatchStrategy;
 use config::Config;
 use connection::Connection;
 use exporter::Exporter;
-use gpio_monitor::monitor_pin;
 use log::*;
 use managers::Bms;
 use managers::Emg;
@@ -86,15 +85,13 @@ async fn main() {
     match Config::global().command_dispatch_strategy {
         CommandDispatchStrategy::Server => server::init(manager_channel_map).await,
         CommandDispatchStrategy::GpioMonitor => {
-            tokio::spawn(async move {
-                monitor_pin(
-                    manager_channel_map
-                        .get(Resource::Maestro.as_str_name())
-                        .unwrap()
-                        .clone(),
-                )
-                .await;
-            });
+            gpio_monitor::monitor_pin(
+                manager_channel_map
+                    .get(Resource::Maestro.as_str_name())
+                    .unwrap()
+                    .clone(),
+            )
+            .await;
         },
     }
 }
