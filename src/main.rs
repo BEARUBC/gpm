@@ -5,7 +5,6 @@
 mod config; // Configuration settings (e.g., TCP address, buffer sizes)
 mod connection; // Handles TCP connection framing and data transmission
 mod exporter; // Telemetry exporter for system metrics
-#[cfg(feature = "pi")]
 mod gpio_monitor;
 mod macros; // Utility macros for common functionality
 mod managers; // Resource management framework
@@ -22,7 +21,6 @@ use config::CommandDispatchStrategy;
 use config::Config;
 use connection::Connection;
 use exporter::Exporter;
-#[cfg(feature = "pi")]
 use gpio_monitor::monitor_pin;
 use log::*;
 use managers::Bms;
@@ -31,9 +29,7 @@ use managers::Maestro;
 use managers::ManagerChannelData;
 use prost::Message;
 #[cfg(feature = "pi")]
-use rppal::gpio::Gpio;
-#[cfg(feature = "pi")]
-use rppal::gpio::InputPin;
+use rppal::gpio::{Gpio, InputPin};
 use tokio::io::AsyncReadExt;
 use tokio::io::AsyncWriteExt;
 use tokio::net::TcpListener;
@@ -95,16 +91,15 @@ async fn main() {
     match command_dispatch_strategy {
         CommandDispatchStrategy::Server => server::init(manager_channel_map).await,
         CommandDispatchStrategy::GpioMonitor => {
-            if cfg!(feature = "pi") {
-                let maestro_tx = manager_channel_map
-                    .get(Resource::Maestro.as_str_name())
-                    .clone();
-                tokio::spawn(async move {
-                    monitor_pin(maestro_tx).await;
-                });
-            } else {
-                panic!("Cannot use GPIO monitor outside the PI environment");
-            }
+            tokio::spawn(async move {
+                monitor_pin(
+                    manager_channel_map
+                        .get(Resource::Maestro.as_str_name())
+                        .unwrap()
+                        .clone(),
+                )
+                .await;
+            });
         },
     }
 }

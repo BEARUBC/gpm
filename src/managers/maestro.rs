@@ -5,25 +5,20 @@ use anyhow::Error;
 use anyhow::Result;
 use log::*;
 #[cfg(feature = "pi")]
-use raestro::maestro::builder::Builder;
-#[cfg(feature = "pi")]
-use raestro::maestro::constants::Baudrate;
-#[cfg(feature = "pi")]
-use raestro::maestro::constants::Channel;
-#[cfg(feature = "pi")]
-use raestro::maestro::constants::MAX_QTR_PWM;
-#[cfg(feature = "pi")]
-use raestro::maestro::constants::MIN_QTR_PWM;
-use tokio::sync::mpsc::channel;
+use raestro::maestro::{
+    builder::Builder,
+    constants::{Baudrate, Channel, MAX_QTR_PWM, MIN_QTR_PWM},
+};
 use tokio::sync::mpsc::Receiver;
 use tokio::sync::mpsc::Sender;
+use tokio::sync::mpsc::channel;
 
+use super::MAX_MPSC_CHANNEL_BUFFER;
 use super::Manager;
 use super::ManagerChannelData;
 use super::Resource;
 use super::ResourceManager;
 use super::Responder;
-use super::MAX_MPSC_CHANNEL_BUFFER;
 use crate::managers::TASK_SUCCESS;
 use crate::managers::UNDEFINED_TASK;
 use crate::not_on_pi;
