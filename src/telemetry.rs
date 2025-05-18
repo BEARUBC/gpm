@@ -14,16 +14,16 @@ use anyhow::Result;
 use chrono::DateTime;
 use chrono::Utc;
 use http_body_util::Full;
+use hyper::Request;
+use hyper::Response;
 use hyper::body::Bytes;
 use hyper::server::conn::http1;
 use hyper::service::service_fn;
-use hyper::Request;
-use hyper::Response;
 use hyper_util::rt::TokioIo;
 use log::*;
-use prometheus_client::encoding::text::encode;
 use prometheus_client::encoding::EncodeLabelSet;
 use prometheus_client::encoding::EncodeLabelValue;
+use prometheus_client::encoding::text::encode;
 use prometheus_client::metrics::counter::Atomic;
 use prometheus_client::metrics::counter::Counter;
 use prometheus_client::metrics::family::Family;
@@ -46,10 +46,8 @@ use tokio::sync::Semaphore;
 use tokio::time;
 use tokio::time::interval;
 
-use crate::config::MAX_CONCURRENT_CONNECTIONS;
-use crate::config::TELEMETRY_MAX_TICKS;
-use crate::config::TELEMETRY_TCP_ADDR;
-use crate::config::TELEMETRY_TICK_INTERVAL_IN_SECONDS;
+use crate::config::Config;
+use crate::config::TelemetryConfig;
 use crate::retry;
 
 type Label = Vec<(String, String)>;
@@ -89,9 +87,18 @@ impl Exporter {
     /// TODO: @krarpit telemetry needs access to manager channel map in order to probe resource
     /// health                this needs to be cleaned up and tested
     pub async fn init(&mut self) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-        let listener = TcpListener::bind(TELEMETRY_TCP_ADDR).await.unwrap();
-        let sem = Arc::new(Semaphore::new(MAX_CONCURRENT_CONNECTIONS));
-        info!("Telemetry server listening on {:?}", TELEMETRY_TCP_ADDR);
+        let server_config = Config::global().server.as_ref().unwrap();
+        let telemetry_config = Config::global().telemetry.as_ref().unwrap();
+        let listener = TcpListener::bind(telemetry_config.address.clone())
+            .await
+            .unwrap();
+        let sem = Arc::new(Semaphore::new(
+            server_config.max_concurrent_connections as usize,
+        ));
+        info!(
+            "Telemetry server listening on {:?}",
+            telemetry_config.address
+        );
         loop {
             // let sem_clone = Arc::clone(&sem);
             let (stream, client_addr) = listener.accept().await.unwrap();

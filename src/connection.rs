@@ -20,8 +20,7 @@ use tokio::sync::mpsc::Sender;
 use tokio::sync::oneshot;
 use tokio::time::sleep;
 
-use crate::config::FRAME_PREFIX_LENGTH;
-use crate::config::READ_BUFFER_CAPACITY;
+use crate::config::Config;
 use crate::request;
 use crate::Request;
 
@@ -34,9 +33,10 @@ pub struct Connection {
 
 impl Connection {
     pub fn new(stream: TcpStream) -> Connection {
+        let server_config = Config::global().server.as_ref().unwrap();
         Connection {
             stream,
-            buffer: BytesMut::with_capacity(READ_BUFFER_CAPACITY),
+            buffer: BytesMut::with_capacity(server_config.read_buffer_capacity_in_bytes as usize),
         }
     }
 
@@ -101,9 +101,12 @@ impl Connection {
             },
             _ => (),
         }
+        let server_config = Config::global().server.as_ref().unwrap();
         // Drop all read data
-        self.buffer
-            .advance(<u64 as TryInto<usize>>::try_into(len).unwrap() + FRAME_PREFIX_LENGTH);
+        self.buffer.advance(
+            <u64 as TryInto<usize>>::try_into(len).unwrap()
+                + server_config.frame_prefix_length_in_bytes as usize,
+        );
         let parsed_frame = Request::decode(Bytes::from(data))?;
         Ok(Some(parsed_frame))
     }
