@@ -4,8 +4,8 @@
 // It is responsible for handling incoming TCP connections, delegating tasks to resource managers, and initializing key components.
 mod config; // Configuration settings (e.g., TCP address, buffer sizes)
 mod connection; // Handles TCP connection framing and data transmission
-mod exporter; // Telemetry exporter for system metrics
-mod gpio_monitor; // Provides an alternate strategy for dispatching commands based on GPIO pin
+mod gpio_monitor;
+mod telemetry; // Telemetry exporter for system metrics // Provides an alternate strategy for dispatching commands based on GPIO pin
 // state
 mod macros; // Utility macros for common functionality
 mod managers; // Resource management framework
@@ -21,7 +21,6 @@ use bytes::BytesMut;
 use config::CommandDispatchStrategy;
 use config::Config;
 use connection::Connection;
-use exporter::Exporter;
 use log::*;
 use managers::Bms;
 use managers::Emg;
@@ -78,7 +77,7 @@ async fn main() {
 
     // Spawn the telemetry exporter as an independent async task.
     tokio::spawn(async {
-        let mut exporter = Exporter::new();
+        let mut exporter = telemetry::Exporter::new();
         exporter.init().await
     });
 
