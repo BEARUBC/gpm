@@ -21,7 +21,6 @@ use super::Resource;
 use super::ResourceManager;
 use super::Responder;
 use crate::managers::TASK_SUCCESS;
-use crate::managers::UNDEFINED_TASK;
 use crate::not_on_pi;
 use crate::parse_channel_data;
 use crate::request::TaskData::MaestroData;
@@ -58,6 +57,8 @@ impl Resource for Maestro {
 }
 
 impl ResourceManager for Manager<Maestro> {
+    type ResourceType = Maestro;
+
     /// Handles all Maestro-related tasks
     async fn handle_task(&mut self, channel_data: ManagerChannelData) -> Result<()> {
         let (task, task_data, send_channel) =

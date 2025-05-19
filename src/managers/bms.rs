@@ -36,6 +36,7 @@ impl Resource for Bms {
 }
 
 impl ResourceManager for Manager<Bms> {
+    type ResourceType = Bms;
     /// Handles all BMS-related tasks
     async fn handle_task(&mut self, channel_data: ManagerChannelData) -> Result<()> {
         let (task, task_data, send_channel) =

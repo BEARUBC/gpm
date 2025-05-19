@@ -23,24 +23,23 @@ const MAX_MPSC_CHANNEL_BUFFER: usize = 32;
 
 // Resource manager return values
 const TASK_SUCCESS: &str = "Successfully ran task";
-const UNDEFINED_TASK: &str = "Undefined task, did you forget to initialize the message?";
 
 /// Represent a resource manager
-pub trait ResourceManager {
+pub trait ResourceManager: HasChannel {
+    type ResourceType: Resource;
+
     async fn handle_task(&mut self, data: ManagerChannelData) -> Result<()>;
-    async fn run(&mut self)
-    where
-        Self: ResourceManagerLike,
-    {
+
+    async fn run(&mut self) {
         info!(
             "{:?} resource manager now listening for messages",
-            Self::name()
+            Self::ResourceType::name()
         );
         while let Some(data) = self.rx().recv().await {
             match self.handle_task(data).await {
                 Err(err) => error!(
                     "Handling {:?} task failed with error={:?}",
-                    Self::name(),
+                    Self::ResourceType::name(),
                     err
                 ),
                 _ => (),
@@ -54,8 +53,8 @@ pub trait Resource {
     fn name() -> String;
 }
 
-pub trait ResourceManagerLike {
-    fn name() -> String;
+pub trait HasChannel {
+    fn tx(&self) -> Sender<ManagerChannelData>;
     fn rx(&mut self) -> &mut Receiver<ManagerChannelData>;
 }
 
@@ -76,21 +75,19 @@ impl<S: Resource> Manager<S> {
             metadata: S::init(),
         }
     }
-
-    /// Returns tx component of the resource manager's MPSC channel to
-    /// enable sending tasks
-    pub fn tx(&self) -> Sender<ManagerChannelData> {
-        self.tx.clone()
-    }
 }
 
-impl<S: Resource> ResourceManagerLike for Manager<S> {
-    fn rx(&mut self) -> &mut Receiver<ManagerChannelData> {
-        &mut self.rx
+impl<S: Resource> HasChannel for Manager<S> {
+    /// Returns tx component of the resource manager's MPSC channel to
+    /// enable sending tasks
+    fn tx(&self) -> Sender<ManagerChannelData> {
+        self.tx.clone()
     }
 
-    fn name() -> String {
-        S::name()
+    /// Returns rx component of the resource manager's MPSC channel to
+    /// enable reading responses
+    fn rx(&mut self) -> &mut Receiver<ManagerChannelData> {
+        &mut self.rx
     }
 }
 

@@ -38,6 +38,7 @@ impl Resource for Emg {
 }
 
 impl ResourceManager for Manager<Emg> {
+    type ResourceType = Emg;
     /// Handles all EMG-related tasks
     async fn handle_task(&mut self, channel_data: ManagerChannelData) -> Result<()> {
         let (task, task_data, send_channel) =
