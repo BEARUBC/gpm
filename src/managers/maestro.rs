@@ -25,7 +25,6 @@ use crate::managers::UNDEFINED_TASK;
 use crate::not_on_pi;
 use crate::parse_channel_data;
 use crate::request::TaskData::MaestroData;
-use crate::run;
 use crate::sgcp;
 use crate::sgcp::maestro::Task as MaestroTask;
 use crate::sgcp::maestro::*;
@@ -59,8 +58,6 @@ impl Resource for Maestro {
 }
 
 impl ResourceManager for Manager<Maestro> {
-    run!(Maestro);
-
     /// Handles all Maestro-related tasks
     async fn handle_task(&mut self, channel_data: ManagerChannelData) -> Result<()> {
         let (task, task_data, send_channel) =

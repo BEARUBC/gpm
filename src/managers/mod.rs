@@ -9,9 +9,9 @@ pub use emg::Emg;
 use log::error;
 use log::info;
 pub use maestro::Maestro;
-use tokio::sync::mpsc::channel;
 use tokio::sync::mpsc::Receiver;
 use tokio::sync::mpsc::Sender;
+use tokio::sync::mpsc::channel;
 
 use crate::request::TaskData;
 
@@ -27,13 +27,36 @@ const UNDEFINED_TASK: &str = "Undefined task, did you forget to initialize the m
 
 /// Represent a resource manager
 pub trait ResourceManager {
-    async fn run(&mut self);
     async fn handle_task(&mut self, data: ManagerChannelData) -> Result<()>;
+    async fn run(&mut self)
+    where
+        Self: ResourceManagerLike,
+    {
+        info!(
+            "{:?} resource manager now listening for messages",
+            Self::name()
+        );
+        while let Some(data) = self.rx().recv().await {
+            match self.handle_task(data).await {
+                Err(err) => error!(
+                    "Handling {:?} task failed with error={:?}",
+                    Self::name(),
+                    err
+                ),
+                _ => (),
+            };
+        }
+    }
 }
 
 pub trait Resource {
     fn init() -> Self;
     fn name() -> String;
+}
+
+pub trait ResourceManagerLike {
+    fn name() -> String;
+    fn rx(&mut self) -> &mut Receiver<ManagerChannelData>;
 }
 
 /// Represents a resource manager
@@ -58,6 +81,16 @@ impl<S: Resource> Manager<S> {
     /// enable sending tasks
     pub fn tx(&self) -> Sender<ManagerChannelData> {
         self.tx.clone()
+    }
+}
+
+impl<S: Resource> ResourceManagerLike for Manager<S> {
+    fn rx(&mut self) -> &mut Receiver<ManagerChannelData> {
+        &mut self.rx
+    }
+
+    fn name() -> String {
+        S::name()
     }
 }
 

@@ -4,20 +4,19 @@
 use anyhow::Error;
 use anyhow::Result;
 use log::*;
-use tokio::sync::mpsc::channel;
 use tokio::sync::mpsc::Receiver;
 use tokio::sync::mpsc::Sender;
+use tokio::sync::mpsc::channel;
 
+use super::MAX_MPSC_CHANNEL_BUFFER;
 use super::Manager;
 use super::ManagerChannelData;
 use super::Resource;
 use super::ResourceManager;
 use super::Responder;
-use super::MAX_MPSC_CHANNEL_BUFFER;
 use super::TASK_SUCCESS;
 use crate::parse_channel_data;
 use crate::request::TaskData::EmgData;
-use crate::run;
 use crate::sgcp;
 use crate::sgcp::emg::*;
 use crate::todo;
@@ -39,8 +38,6 @@ impl Resource for Emg {
 }
 
 impl ResourceManager for Manager<Emg> {
-    run!(Emg);
-
     /// Handles all EMG-related tasks
     async fn handle_task(&mut self, channel_data: ManagerChannelData) -> Result<()> {
         let (task, task_data, send_channel) =

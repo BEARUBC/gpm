@@ -90,26 +90,3 @@ macro_rules! parse_channel_data {
         Ok((data.0, data.1, $id.resp_tx))
     }};
 }
-
-/// Generic implementation for implementing the `run` method of a ResourceManager
-#[macro_export]
-macro_rules! run {
-    ($resource:ty) => {
-        async fn run(&mut self) {
-            info!(
-                "{:?} resource manager now listening for messages",
-                <$resource>::name()
-            );
-            while let Some(data) = self.rx.recv().await {
-                match self.handle_task(data).await {
-                    Err(err) => error!(
-                        "Handling {:?} task failed with error={:?}",
-                        <$resource>::name(),
-                        err
-                    ),
-                    _ => (),
-                };
-            }
-        }
-    };
-}
