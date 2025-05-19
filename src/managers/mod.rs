@@ -25,7 +25,7 @@ const MAX_MPSC_CHANNEL_BUFFER: usize = 32;
 const TASK_SUCCESS: &str = "Successfully ran task";
 
 /// Represent a resource manager
-pub trait ResourceManager: HasChannel {
+pub trait ResourceManager: HasMpscChannel {
     type ResourceType: Resource;
 
     async fn handle_task(&mut self, data: ManagerChannelData) -> Result<()>;
@@ -53,7 +53,7 @@ pub trait Resource {
     fn name() -> String;
 }
 
-pub trait HasChannel {
+pub trait HasMpscChannel {
     fn tx(&self) -> Sender<ManagerChannelData>;
     fn rx(&mut self) -> &mut Receiver<ManagerChannelData>;
 }
@@ -77,7 +77,7 @@ impl<S: Resource> Manager<S> {
     }
 }
 
-impl<S: Resource> HasChannel for Manager<S> {
+impl<S: Resource> HasMpscChannel for Manager<S> {
     /// Returns tx component of the resource manager's MPSC channel to
     /// enable sending tasks
     fn tx(&self) -> Sender<ManagerChannelData> {

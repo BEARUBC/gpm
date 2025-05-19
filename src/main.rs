@@ -36,7 +36,7 @@ use tokio::sync::mpsc::Sender;
 use tokio::sync::oneshot;
 use tokio::time::sleep;
 
-use crate::managers::HasChannel;
+use crate::managers::HasMpscChannel;
 use crate::managers::Manager;
 use crate::managers::ResourceManager;
 
