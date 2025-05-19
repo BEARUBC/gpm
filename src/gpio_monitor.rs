@@ -15,36 +15,50 @@ use tokio::sync::mpsc::Sender;
 use tokio::sync::oneshot;
 use tokio::time::sleep;
 
-pub async fn monitor_pin(maestro_tx: Sender<ManagerChannelData>) {
+pub async fn run_gpio_monitor_loop(maestro_tx: Sender<ManagerChannelData>) {
     #[cfg(feature = "pi")]
     {
-        let gpio_monitor_config = Config::global().gpio_monitor.as_ref().unwrap();
+        let gpio_monitor_config = Config::global()
+            .gpio_monitor
+            .as_ref()
+            .expect("Expected GPIO monitor config to be defined");
+
         info!(
             "Started GPIO pin monitor for pin {:?}",
             gpio_monitor_config.pin
         );
+
         let gpio = Gpio::new().expect("Failed to initialize GPIO");
         let mut pin = gpio
             .get(gpio_monitor_config.pin)
             .expect("Failed to access pin")
             .into_input_pullup();
+
         loop {
             let (resp_tx, resp_rx) = oneshot::channel::<String>();
-            if pin.is_high() {
-                maestro_tx.send(ManagerChannelData {
-                    task_code: sgcp::maestro::Task::OpenFist.as_str_name().to_string(),
-                    task_data: None,
-                    resp_tx,
-                });
+            let task_code = if pin.is_high() {
+                sgcp::maestro::Task::OpenFist.as_str_name().to_string()
             } else {
-                maestro_tx.send(ManagerChannelData {
-                    task_code: sgcp::maestro::Task::CloseFist.as_str_name().to_string(),
+                sgcp::maestro::Task::CloseFist.as_str_name().to_string()
+            };
+
+            if let Err(e) = maestro_tx
+                .send(ManagerChannelData {
+                    task_code,
                     task_data: None,
                     resp_tx,
-                });
+                })
+                .await
+            {
+                error!("Failed to send command to Maestro: {}", e);
+                continue;
             }
-            let res = resp_rx.await.unwrap();
-            info!("Receieved response from Maestro manager: {:?}", res);
+
+            match resp_rx.await {
+                Ok(res) => info!("Receieved response from Maestro manager: {:?}", res),
+                Err(e) => error!("Response channel closed before receiving response: {}", e),
+            }
+
             sleep(Duration::from_millis(100)).await;
         }
     }

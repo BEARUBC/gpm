@@ -82,12 +82,12 @@ async fn main() {
     });
 
     match Config::global().command_dispatch_strategy {
-        CommandDispatchStrategy::Server => server::init(manager_channel_map).await,
+        CommandDispatchStrategy::Server => server::run_server_loop(manager_channel_map).await,
         CommandDispatchStrategy::GpioMonitor => {
-            gpio_monitor::monitor_pin(
+            gpio_monitor::run_gpio_monitor_loop(
                 manager_channel_map
                     .get(Resource::Maestro.as_str_name())
-                    .unwrap()
+                    .expect("Expected the Maestro manager to be initialized")
                     .clone(),
             )
             .await;

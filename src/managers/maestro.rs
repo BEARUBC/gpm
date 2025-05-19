@@ -3,6 +3,7 @@ use std::time::Duration;
 
 use anyhow::Error;
 use anyhow::Result;
+use anyhow::anyhow;
 use log::*;
 #[cfg(feature = "pi")]
 use raestro::maestro::{
@@ -26,15 +27,10 @@ use crate::parse_channel_data;
 use crate::request::TaskData::MaestroData;
 use crate::run;
 use crate::sgcp;
+use crate::sgcp::maestro::Task as MaestroTask;
 use crate::sgcp::maestro::*;
 use crate::todo;
 use crate::verify_channel_data;
-
-macro_rules! set_target {
-    ($metadata:expr, $($channel:ident => $target:ident),*) => {
-        $metadata.controller.set_target($channel, $target).unwrap();
-    };
-}
 
 /// Represents a Maestro resource
 pub struct Maestro {
@@ -50,7 +46,7 @@ impl Resource for Maestro {
                 .baudrate(Baudrate::Baudrate11520)
                 .block_duration(Duration::from_millis(100))
                 .try_into()
-                .unwrap();
+                .expect("Could not initialize Raestro");
             Maestro { controller }
         }
         #[cfg(not(feature = "pi"))]
@@ -68,48 +64,53 @@ impl ResourceManager for Manager<Maestro> {
     /// Handles all Maestro-related tasks
     async fn handle_task(&mut self, channel_data: ManagerChannelData) -> Result<()> {
         let (task, task_data, send_channel) =
-            parse_channel_data!(channel_data, Task, MaestroData).map_err(|e: Error| e)?;
-        let res = match task {
-            Task::UndefinedTask => {
+            parse_channel_data!(channel_data, MaestroTask, MaestroData).map_err(|e: Error| e)?;
+
+        #[cfg(feature = "pi")]
+        let controller = self.metadata.controller;
+
+        let task_result = match task {
+            MaestroTask::UndefinedTask => {
                 warn!("Encountered an undefined task type");
-                UNDEFINED_TASK.to_string()
+                Err(Error::msg("Encountered an undefined task type"))
             },
-            Task::OpenFist => {
+            MaestroTask::OpenFist => {
                 #[cfg(not(feature = "pi"))]
                 {
                     not_on_pi!();
-                    TASK_SUCCESS.to_string()
+                    Ok(())
                 }
                 #[cfg(feature = "pi")]
                 {
-                    set_target!(
-                        self.metadata,
-                        Channel::Channel0 => MIN_QTR_PWM,
-                        Channel::Channel1 => MIN_QTR_PWM,
-                        Channel::Channel2 => MIN_QTR_PWM
-                    );
-                    TASK_SUCCESS.to_string()
+                    controller.set_target(Channel::Channel0, MIN_QTR_PWM)?;
+                    controller.set_target(Channel::Channel1, MIN_QTR_PWM)?;
+                    controller.set_target(Channel::Channel2, MIN_QTR_PWM)?;
+                    Ok(())
                 }
             },
-            Task::CloseFist => {
+            MaestroTask::CloseFist => {
                 #[cfg(not(feature = "pi"))]
                 {
                     not_on_pi!();
-                    TASK_SUCCESS.to_string()
+                    Ok(())
                 }
                 #[cfg(feature = "pi")]
                 {
-                    set_target!(
-                        self.metadata,
-                        Channel::Channel0 => MAX_QTR_PWM,
-                        Channel::Channel1 => MAX_QTR_PWM,
-                        Channel::Channel2 => MAX_QTR_PWM
-                    );
-                    TASK_SUCCESS.to_string()
+                    controller.set_target(Channel::Channel0, MAX_QTR_PWM)?;
+                    controller.set_target(Channel::Channel1, MAX_QTR_PWM)?;
+                    controller.set_target(Channel::Channel2, MAX_QTR_PWM)?;
+                    Ok(())
                 }
             },
         };
-        send_channel.send(res);
-        Ok(())
+
+        let response = match task_result {
+            Ok(_) => TASK_SUCCESS.to_string(),
+            Err(e) => format!("Error: {e}"),
+        };
+
+        Ok(send_channel
+            .send(response)
+            .map_err(|e| anyhow!("Send Failed: {e}"))?)
     }
 }

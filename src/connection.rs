@@ -20,9 +20,9 @@ use tokio::sync::mpsc::Sender;
 use tokio::sync::oneshot;
 use tokio::time::sleep;
 
+use crate::Request;
 use crate::config::Config;
 use crate::request;
-use crate::Request;
 
 /// Represents a TCP connection
 pub struct Connection {
@@ -33,7 +33,10 @@ pub struct Connection {
 
 impl Connection {
     pub fn new(stream: TcpStream) -> Connection {
-        let server_config = Config::global().server.as_ref().unwrap();
+        let server_config = Config::global()
+            .server
+            .as_ref()
+            .expect("Global config must include server config");
         Connection {
             stream,
             buffer: BytesMut::with_capacity(server_config.read_buffer_capacity_in_bytes as usize),
@@ -80,14 +83,16 @@ impl Connection {
     /// enough data has been buffered yet, `Ok(None)` is returned. If the
     /// buffered data does not represent a valid frame, or read fails for some
     /// reason, an `Err` is returned.
-    async fn parse_frame(&mut self) -> crate::Result<Option<Request>> {
+    async fn parse_frame(&mut self) -> Result<Option<Request>> {
         if (self.buffer.is_empty()) {
             return Ok(None);
         }
         let mut buf = Cursor::new(&self.buffer[..]);
-        // TODO: @krarpit check if the length is reasonable
-        let len = buf.get_u64();
-        let mut data = vec![0u8; len.try_into().unwrap()];
+        let len: usize = buf
+            .get_u64()
+            .try_into()
+            .expect("Data length should fit into `usize`");
+        let mut data = vec![0u8; len];
         match buf.read_exact(&mut data).await {
             Err(err) => match err.kind() {
                 ErrorKind::UnexpectedEof => {
@@ -101,12 +106,13 @@ impl Connection {
             },
             _ => (),
         }
-        let server_config = Config::global().server.as_ref().unwrap();
+        let server_config = Config::global()
+            .server
+            .as_ref()
+            .expect("Expected server config to be defined");
         // Drop all read data
-        self.buffer.advance(
-            <u64 as TryInto<usize>>::try_into(len).unwrap()
-                + server_config.frame_prefix_length_in_bytes as usize,
-        );
+        self.buffer
+            .advance(len + server_config.frame_prefix_length_in_bytes as usize);
         let parsed_frame = Request::decode(Bytes::from(data))?;
         Ok(Some(parsed_frame))
     }
