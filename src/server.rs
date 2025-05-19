@@ -133,11 +133,8 @@ async fn handle_connection(mut stream: TcpStream, map: &ManagerChannelMap) -> Re
     Ok(())
 }
 
-/// Dispatches a request to the appropiate resource manager. Returns the response from the task. // keep for internal
-pub async fn dispatch_task(
-    request: Request,
-    manager_channel_map: &ManagerChannelMap,
-) -> Result<String> {
+/// Dispatches a request to the appropiate resource manager. Returns the response from the task. 
+pub async fn dispatch_task(request: Request, manager_channel_map: &ManagerChannelMap) -> Result<String> {
     dispatch_task!(
         request,
         Resource::Bms => manager_channel_map.get(Resource::Bms.as_str_name()),
@@ -146,99 +143,7 @@ pub async fn dispatch_task(
     )
 }
 
-/// Starts the main internal task dispatch loop for the bionic arm system.
-/// Periodically sends tasks to resource managers without relying on TCP.
-pub async fn cli_input(manager_channel_map: ManagerChannelMap) {
-    use tokio::time::{sleep, Duration};
-    use std::io::{self, Write};
-
-    info!("Starting internal task dispatch loop...");
-
-    // Open channel for CLI commands
-    loop {
-        // Prompt user for input
-        print!("Enter command (format: <RESOURCE> <TASK_CODE> [TASK_DATA]): ");
-        io::stdout().flush().unwrap();
-
-        // Read input from the user
-        let mut input = String::new();
-        if let Err(err) = io::stdin().read_line(&mut input) {
-            error!("Failed to read input: {:?}", err);
-            continue;
-        }
-
-        // Parse the input into components
-        let parts: Vec<&str> = input.trim().split_whitespace().collect();
-        if parts.len() < 2 {
-            error!("Invalid command format. Expected: <RESOURCE> <TASK_CODE> [TASK_DATA]");
-            continue;
-        }
-
-        // Extract resource, task code, and optional task data
-        let resource = match parts[0].to_uppercase().as_str() {
-            "BMS" => Resource::Bms as i32,
-            "EMG" => Resource::Emg as i32,
-            "MAESTRO" => Resource::Maestro as i32,
-            _ => {
-                error!("Unknown resource: {}", parts[0]);
-                continue;
-            }
-        };
-
-        let task_code = parts[1].to_string();
-        let task_data = if parts.len() > 2 {
-            match resource {
-            x if x == Resource::Bms as i32 => {
-                None // add for when BMS task is implemented that requires task data
-            }
-            x if x == Resource::Emg as i32 => {
-                None // add for when EMG task is implemented that requires task data
-            }
-            x if x == Resource::Maestro as i32 => {
-                let targets: Vec<i32> = parts[2..]
-                    .iter()
-                    .filter_map(|s| s.parse::<i32>().ok())
-                    .collect();
-                let channels: Vec<i32> = vec![]; // Provide appropriate channel data if needed
-                Some(TaskData::MaestroData(super::maestro::TaskData {
-                    targets,
-                    channels,
-                }))
-            }
-            _ => {
-                error!("Unsupported resource type for task data");
-                None
-            }
-            }
-        } else {
-            None
-        };
-
-        // Create the request
-        let request = Request {
-            resource,
-            task_code,
-            task_data,
-        };
-
-        // Pass the request to handle_task
-        match handle_task(request, &manager_channel_map).await {
-            Ok(response) => info!("Task succeeded: {:?}", response),
-            Err(e) => error!("Task failed: {:?}", e),
-        }
-    }
-}
-
-
-pub async fn handle_task(request: Request, map: &ManagerChannelMap) -> Result<String> {
-    dispatch_task!(
-        request,
-        Resource::Bms => map.get(Resource::Bms.as_str_name()),
-        Resource::Emg => map.get(Resource::Emg.as_str_name()),
-        Resource::Maestro => map.get(Resource::Maestro.as_str_name())
-    )
-}
-
+// move this somewhere else
 // event-driven task generation
 // This function is responsible for monitoring events and generating requests
 // based on those events. It uses a timer to trigger periodic tasks and
