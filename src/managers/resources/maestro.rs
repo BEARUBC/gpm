@@ -14,21 +14,19 @@ use tokio::sync::mpsc::Receiver;
 use tokio::sync::mpsc::Sender;
 use tokio::sync::mpsc::channel;
 
-use super::MAX_MPSC_CHANNEL_BUFFER;
-use super::Manager;
-use super::ManagerChannelData;
-use super::Resource;
-use super::ResourceManager;
-use super::Responder;
+use crate::managers::MAX_MPSC_CHANNEL_BUFFER;
+use crate::managers::Manager;
+use crate::managers::ManagerChannelData;
+use crate::managers::Resource;
+use crate::managers::ResourceManager;
+use crate::managers::Responder;
 use crate::managers::TASK_SUCCESS;
 use crate::not_on_pi;
-use crate::parse_channel_data;
 use crate::request::TaskData::MaestroData;
 use crate::sgcp;
 use crate::sgcp::maestro::Task as MaestroTask;
 use crate::sgcp::maestro::*;
 use crate::todo;
-use crate::verify_channel_data;
 
 /// Represents a Maestro resource
 pub struct Maestro {

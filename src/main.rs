@@ -22,10 +22,10 @@ use config::CommandDispatchStrategy;
 use config::Config;
 use connection::Connection;
 use log::*;
-use managers::Bms;
-use managers::Emg;
-use managers::Maestro;
 use managers::ManagerChannelData;
+use managers::resources::bms::Bms;
+use managers::resources::emg::Emg;
+use managers::resources::maestro::Maestro;
 use prost::Message;
 use tokio::io::AsyncReadExt;
 use tokio::io::AsyncWriteExt;
@@ -71,9 +71,9 @@ async fn main() {
 
     // Initialize resource managers and their communication channels.
     let manager_channel_map = init_resource_managers! {
-        Resource::Bms => Manager::<Bms>::new(),
-        Resource::Emg => Manager::<Emg>::new(),
-        Resource::Maestro => Manager::<Maestro>::new()
+        sgcp::Resource::Bms => Manager::<Bms>::new(),
+        sgcp::Resource::Emg => Manager::<Emg>::new(),
+        sgcp::Resource::Maestro => Manager::<Maestro>::new()
     };
 
     // Spawn the telemetry exporter as an independent async task.
@@ -87,7 +87,7 @@ async fn main() {
         CommandDispatchStrategy::GpioMonitor => {
             gpio_monitor::run_gpio_monitor_loop(
                 manager_channel_map
-                    .get(Resource::Maestro.as_str_name())
+                    .get(sgcp::Resource::Maestro.as_str_name())
                     .expect("Expected the Maestro manager to be initialized")
                     .clone(),
             )

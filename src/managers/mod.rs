@@ -1,14 +1,14 @@
-mod bms;
-mod emg;
-mod maestro;
+#[macro_use]
+pub mod macros;
+pub mod resources;
 
 use anyhow::Error;
 use anyhow::Result;
-pub use bms::Bms;
-pub use emg::Emg;
 use log::error;
 use log::info;
-pub use maestro::Maestro;
+use resources::bms::Bms;
+use resources::emg::Emg;
+use resources::maestro::Maestro;
 use tokio::sync::mpsc::Receiver;
 use tokio::sync::mpsc::Sender;
 use tokio::sync::mpsc::channel;
