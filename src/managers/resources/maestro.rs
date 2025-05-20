@@ -59,7 +59,7 @@ impl ResourceManager for Manager<Maestro> {
             parse_channel_data!(channel_data, MaestroTask, MaestroData).map_err(|e: Error| e)?;
 
         #[cfg(feature = "pi")]
-        let controller = self.metadata.controller;
+        let controller = self.resource.controller;
 
         let task_result = match task {
             MaestroTask::UndefinedTask => {

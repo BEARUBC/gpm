@@ -56,8 +56,7 @@ pub trait HasMpscChannel {
 pub struct Manager<S: Resource> {
     pub tx: Sender<ManagerChannelData>,
     pub rx: Receiver<ManagerChannelData>,
-    /// Holds resource specific metadata
-    metadata: S,
+    resource: S,
 }
 
 impl<S: Resource> Manager<S> {
@@ -66,7 +65,7 @@ impl<S: Resource> Manager<S> {
         Manager::<S> {
             tx,
             rx,
-            metadata: S::init(),
+            resource: S::init(),
         }
     }
 }
