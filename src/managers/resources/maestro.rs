@@ -1,6 +1,18 @@
 // All tasks operating on the Maestro servo controller live in this file
-use std::time::Duration;
 
+#![allow(unused_imports)] // Silence warnings because of cfg-gated code
+
+use crate::managers::Manager;
+use crate::managers::ManagerChannelData;
+use crate::managers::Resource;
+use crate::managers::ResourceManager;
+use crate::managers::TASK_SUCCESS;
+use crate::managers::macros::parse_channel_data;
+use crate::not_on_pi;
+use crate::request::TaskData::MaestroData;
+use crate::sgcp;
+use crate::sgcp::maestro::Task as MaestroTask;
+use crate::sgcp::maestro::*;
 use anyhow::Error;
 use anyhow::Result;
 use anyhow::anyhow;
@@ -10,23 +22,7 @@ use raestro::maestro::{
     builder::Builder,
     constants::{Baudrate, Channel, MAX_QTR_PWM, MIN_QTR_PWM},
 };
-use tokio::sync::mpsc::Receiver;
-use tokio::sync::mpsc::Sender;
-use tokio::sync::mpsc::channel;
-
-use crate::managers::MAX_MPSC_CHANNEL_BUFFER;
-use crate::managers::Manager;
-use crate::managers::ManagerChannelData;
-use crate::managers::Resource;
-use crate::managers::ResourceManager;
-use crate::managers::Responder;
-use crate::managers::TASK_SUCCESS;
-use crate::not_on_pi;
-use crate::request::TaskData::MaestroData;
-use crate::sgcp;
-use crate::sgcp::maestro::Task as MaestroTask;
-use crate::sgcp::maestro::*;
-use crate::todo;
+use std::time::Duration;
 
 /// Represents a Maestro resource
 pub struct Maestro {
@@ -59,7 +55,7 @@ impl ResourceManager for Manager<Maestro> {
 
     /// Handles all Maestro-related tasks
     async fn handle_task(&mut self, channel_data: ManagerChannelData) -> Result<()> {
-        let (task, task_data, send_channel) =
+        let (task, _, send_channel) =
             parse_channel_data!(channel_data, MaestroTask, MaestroData).map_err(|e: Error| e)?;
 
         #[cfg(feature = "pi")]

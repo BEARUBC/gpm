@@ -1,19 +1,13 @@
-#[macro_use]
 pub mod macros;
 pub mod resources;
 
-use anyhow::Error;
+use crate::request::TaskData;
 use anyhow::Result;
 use log::error;
 use log::info;
-use resources::bms::Bms;
-use resources::emg::Emg;
-use resources::maestro::Maestro;
 use tokio::sync::mpsc::Receiver;
 use tokio::sync::mpsc::Sender;
 use tokio::sync::mpsc::channel;
-
-use crate::request::TaskData;
 
 /// Represents the channel used by a resource manager to return the task response
 type Responder<T> = tokio::sync::oneshot::Sender<T>;

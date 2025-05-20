@@ -1,28 +1,19 @@
 // Wrapper around a TCP connection to provide a simple prefix-length framing abstraction for streaming protobufs
-use std::io::Cursor;
-use std::io::ErrorKind;
-use std::time::Duration;
-
+use crate::Request;
+use crate::config::Config;
 use anyhow::Error;
 use anyhow::Result;
 use bytes::Buf;
 use bytes::Bytes;
 use bytes::BytesMut;
 use log::error;
-use log::info;
 use log::warn;
 use prost::Message;
+use std::io::Cursor;
+use std::io::ErrorKind;
 use tokio::io::AsyncReadExt;
 use tokio::io::AsyncWriteExt;
-use tokio::net::TcpListener;
 use tokio::net::TcpStream;
-use tokio::sync::mpsc::Sender;
-use tokio::sync::oneshot;
-use tokio::time::sleep;
-
-use crate::Request;
-use crate::config::Config;
-use crate::request;
 
 /// Represents a TCP connection
 pub struct Connection {
@@ -84,7 +75,7 @@ impl Connection {
     /// buffered data does not represent a valid frame, or read fails for some
     /// reason, an `Err` is returned.
     async fn parse_frame(&mut self) -> Result<Option<Request>> {
-        if (self.buffer.is_empty()) {
+        if self.buffer.is_empty() {
             return Ok(None);
         }
         let mut buf = Cursor::new(&self.buffer[..]);
