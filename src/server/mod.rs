@@ -1,3 +1,5 @@
+pub mod connection;
+
 use std::sync::Arc;
 
 use anyhow::Error;
@@ -13,11 +15,11 @@ use tokio::sync::oneshot;
 
 use crate::ManagerChannelMap;
 use crate::config::Config;
-use crate::connection::Connection;
 use crate::import_sgcp;
 use crate::managers::ManagerChannelData;
 use crate::retry;
 use crate::sgcp::*;
+use connection::Connection;
 
 /// Provides the boilerplate to setup routing required to send tasks to the appropriate
 /// resource manager

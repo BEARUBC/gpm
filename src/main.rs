@@ -3,7 +3,6 @@
 // This file contains the main TCP connection loop
 // It is responsible for handling incoming TCP connections, delegating tasks to resource managers, and initializing key components.
 mod config; // Configuration settings (e.g., TCP address, buffer sizes)
-mod connection; // Handles TCP connection framing and data transmission
 mod gpio_monitor;
 mod telemetry; // Telemetry exporter for system metrics // Provides an alternate strategy for dispatching commands based on GPIO pin
 // state
@@ -20,13 +19,13 @@ use anyhow::Result;
 use bytes::BytesMut;
 use config::CommandDispatchStrategy;
 use config::Config;
-use connection::Connection;
 use log::*;
 use managers::ManagerChannelData;
 use managers::resources::bms::Bms;
 use managers::resources::emg::Emg;
 use managers::resources::maestro::Maestro;
 use prost::Message;
+use server::connection::Connection;
 use tokio::io::AsyncReadExt;
 use tokio::io::AsyncWriteExt;
 use tokio::net::TcpListener;

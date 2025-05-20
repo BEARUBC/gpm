@@ -1,4 +1,4 @@
-// A simple prefix-length framing abstraction for streaming protobufs
+// Wrapper around a TCP connection to provide a simple prefix-length framing abstraction for streaming protobufs
 use std::io::Cursor;
 use std::io::ErrorKind;
 use std::time::Duration;
