@@ -1,54 +1,25 @@
-use std::clone;
 // This file contains a tiny http server which exposes our custom
 // prometheus exporter endpoint
-use std::collections::HashMap;
-use std::convert::Infallible;
-use std::default;
-use std::io::Write;
-use std::net::SocketAddr;
-use std::sync::Arc;
-use std::time::Duration;
-
+use crate::config::Config;
 use anyhow::Ok;
 use anyhow::Result;
-use chrono::DateTime;
-use chrono::Utc;
 use http_body_util::Full;
-use hyper::Request;
 use hyper::Response;
 use hyper::body::Bytes;
 use hyper::server::conn::http1;
 use hyper::service::service_fn;
 use hyper_util::rt::TokioIo;
 use log::*;
-use prometheus_client::encoding::EncodeLabelSet;
-use prometheus_client::encoding::EncodeLabelValue;
 use prometheus_client::encoding::text::encode;
-use prometheus_client::metrics::counter::Atomic;
-use prometheus_client::metrics::counter::Counter;
 use prometheus_client::metrics::family::Family;
 use prometheus_client::metrics::gauge::Gauge;
-use prometheus_client::registry;
 use prometheus_client::registry::Registry;
-use psutil::cpu::CpuPercentCollector;
-use psutil::memory::virtual_memory;
-use serde::Deserialize;
-use serde::Serialize;
-use sysinfo::Components;
+use std::sync::Arc;
 use sysinfo::CpuRefreshKind;
-use sysinfo::Disks;
 use sysinfo::MemoryRefreshKind;
-use sysinfo::Networks;
 use sysinfo::RefreshKind;
 use sysinfo::System;
 use tokio::net::TcpListener;
-use tokio::sync::Semaphore;
-use tokio::time;
-use tokio::time::interval;
-
-use crate::config::Config;
-use crate::config::TelemetryConfig;
-use crate::retry;
 
 type Label = Vec<(String, String)>;
 type GaugeMetric = Family<Label, Gauge>;
@@ -87,20 +58,15 @@ impl Exporter {
     /// TODO: @krarpit telemetry needs access to manager channel map in order to probe resource
     /// health                this needs to be cleaned up and tested
     pub async fn init(&mut self) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-        let server_config = Config::global().server.as_ref().unwrap();
         let telemetry_config = Config::global().telemetry.as_ref().unwrap();
         let listener = TcpListener::bind(telemetry_config.address.clone())
             .await
             .unwrap();
-        let sem = Arc::new(Semaphore::new(
-            server_config.max_concurrent_connections as usize,
-        ));
         info!(
             "Telemetry server listening on {:?}",
             telemetry_config.address
         );
         loop {
-            // let sem_clone = Arc::clone(&sem);
             let (stream, client_addr) = listener.accept().await.unwrap();
             let io = TokioIo::new(stream);
             let registry = self.registry.clone();
