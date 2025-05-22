@@ -2,10 +2,8 @@ name: Cross-compile and Release GPM for Raspberry Pi
 
 on:
   push:
-    branches:
-      - kumarpit/cicd2 
     tags:
-      - 'v*' # Only publish releases on version tags like v1.0.0
+      - 'v*'
 
 jobs:
   build-and-release:
@@ -14,6 +12,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          submodules: true
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
