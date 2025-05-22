@@ -1,0 +1,12 @@
+name: PR Checks
+
+on:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build:
+    uses: ./.github/workflows/build-for-pi.yml
+    with:
+      publish-release: false

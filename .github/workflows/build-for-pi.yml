@@ -1,9 +1,11 @@
-name: Cross-compile and Release GPM for Raspberry Pi
+name: Cross-compile for Raspberry Pi (2/3/4)
 
 on:
-  push:
-    tags:
-      - 'v*'
+  workflow_call:
+    inputs:
+      publish-release:
+        type: boolean
+        default: false
 
 jobs:
   build-and-release:
@@ -28,11 +30,13 @@ jobs:
           cargo build --release --target=armv7-unknown-linux-gnueabihf
 
       - name: Rename binary
+        if: ${{ inputs.publish-release }}
         run: |
           mkdir -p dist
           cp target/armv7-unknown-linux-gnueabihf/release/gpm dist/
 
       - name: Create GitHub Release
+        if: ${{ inputs.publish-release }}
         uses: softprops/action-gh-release@v2
         with:
           files: dist/gpm

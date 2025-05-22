@@ -1,0 +1,12 @@
+name: Publish Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build:
+    uses: ./.github/workflows/build-rpi.yml
+    with:
+      publish-release: true
