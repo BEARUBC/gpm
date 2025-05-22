@@ -3,7 +3,7 @@ name: Cross-compile and Release GPM for Raspberry Pi
 on:
   push:
     branches:
-      - main
+      - kumarpit/cicd2 
     tags:
       - 'v*' # Only publish releases on version tags like v1.0.0
 
