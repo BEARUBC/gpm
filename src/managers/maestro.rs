@@ -35,6 +35,8 @@ use crate::sgcp::maestro::*;
 use crate::todo;
 use crate::verify_channel_data;
 
+use rppal::pwm::{Channel, Polarity, Pwm};
+
 macro_rules! set_target { 
     ($metadata:expr, $($channel:ident => $target:ident),*) => {
         $metadata.controller.set_target($channel, $target).unwrap();
@@ -72,6 +74,13 @@ impl ResourceManager for Manager<Maestro> {
 
     /// Handles all Maestro-related tasks // todo: convert this to collect things from the EMG manager
     async fn handle_task(&mut self, channel_data: ManagerChannelData) -> Result<()> {
+        let mut pwm = Pwm::with_frequency(
+            Channel::Pwm0,         // GPIO18 (Physical pin 12)
+            50.0,                  // 50Hz for standard servo
+            0.0,                   // Start with 0% duty cycle
+            Polarity::Normal,
+            true,
+        )?;
         let (task, task_data, send_channel) =
             parse_channel_data!(channel_data, Task, MaestroData).map_err(|e: Error| e)?;
         let res: String = match task {
@@ -80,36 +89,14 @@ impl ResourceManager for Manager<Maestro> {
                 UNDEFINED_TASK.to_string()
             },
             Task::OpenFist => {
-                #[cfg(not(feature = "pi"))]
                 {
-                    not_on_pi!();
-                    TASK_SUCCESS.to_string()
-                }
-                #[cfg(feature = "pi")]
-                {
-                    set_target!(
-                        self.metadata,
-                        Channel::Channel0 => MIN_QTR_PWM,
-                        Channel::Channel1 => MIN_QTR_PWM,
-                        Channel::Channel2 => MIN_QTR_PWM
-                    );
+                    pwm.set_duty_cycle(0.10)?;
                     TASK_SUCCESS.to_string()
                 }
             },
             Task::CloseFist => {
-                #[cfg(not(feature = "pi"))]
                 {
-                    not_on_pi!();
-                    TASK_SUCCESS.to_string()
-                }
-                #[cfg(feature = "pi")]
-                {
-                    set_target!(
-                        self.metadata,
-                        Channel::Channel0 => MAX_QTR_PWM,
-                        Channel::Channel1 => MAX_QTR_PWM,
-                        Channel::Channel2 => MAX_QTR_PWM
-                    );
+                    pwm.set_duty_cycle(0.05)?;
                     TASK_SUCCESS.to_string()
                 }
             },

@@ -27,6 +27,7 @@ use crate::managers::TASK_FAILURE;
 use spidev::{Spidev, SpidevOptions, SpidevTransfer, SpiModeFlags};
 use std::char::DecodeUtf16;
 use std::io;
+use std::io::Write;
 use mcp3008::{Mcp3008, Mcp3008Error};
 use cyclic_list::List;
 use std::iter::FromIterator;
@@ -166,46 +167,45 @@ fn process_data(values: Vec<u16>, inner_threshold: u16, outer_threshold:u16) -> 
 }
     
 fn calibrate_emg(inner_read_buffer_size: usize, outer_read_buffer_size: usize, adc_option: &mut Option<Mcp3008>) -> [u16; 2] {
-    // read and populate the buffer
-    let mut inner_buffer: Vec<u16> = vec![0; inner_read_buffer_size];
-    let mut outer_buffer: Vec<u16> = vec![0; outer_read_buffer_size];
-    let mut output: [u16; 2] = [0; 2];
-    let mut i = 0;
-    let mut j = 0;
-    println!("Flex inner");
-    while inner_buffer[inner_read_buffer_size] == 0 {
-        let adc_cal = read_adc_channel(0, adc_option);
-        match adc_cal{
-            Ok(v) => inner_buffer[i] = v,
-            Err(e) => println!("Error reading adc inner"),
-        } 
-        i += 1;
-        // add delay if needed
+    let inner_buffer = read_samples(0, inner_read_buffer_size, adc_option, "inner");
+    
+    // Prompt the user to continue
+    print!("\nFinished inner sampling. Press ENTER when you're ready to start outer sampling...");
+    io::stdout().flush().unwrap(); // Ensure prompt is printed
+    let _ = io::stdin().read_line(&mut String::new());
+
+    let outer_buffer = read_samples(1, outer_read_buffer_size, adc_option, "outer");
+
+    let avg_inner = average(inner_buffer.clone()).unwrap_or_else(|e| {
+        println!("Error calculating average for inner buffer: {}", e);
+        0
+    });
+
+    let avg_outer = average(outer_buffer.clone()).unwrap_or_else(|e| {
+        println!("Error calculating average for outer buffer: {}", e);
+        0
+    });
+
+    [avg_inner, avg_outer]
+}
+
+fn read_samples(
+    channel: u8,
+    sample_count: usize,
+    adc_option: &mut Option<Mcp3008>,
+    label: &str,
+) -> Vec<u16> {
+    let mut buffer = Vec::with_capacity(sample_count);
+    println!("Flex {label}");
+
+    while buffer.len() < sample_count {
+        match read_adc_channel(channel, adc_option) {
+            Ok(value) => buffer.push(value),
+            Err(_) => println!("Error reading ADC on channel {channel} during {label}"),
+        }
     }
-    output[0] = match average(inner_buffer.clone()) {
-        Ok(avg) => avg,
-        Err(e) => {
-            println!("Error calculating average for inner buffer: {}", e);
-            0 // Default value in case of error
-        }
-    };
-    println!("Flex outer");
-    while outer_buffer[outer_read_buffer_size] == 0 {
-        let adc_cal = read_adc_channel(1, adc_option);
-        match adc_cal{
-            Ok(v) => outer_buffer[j] = v,
-            Err(e) => println!("Error reading adc outer"),
-        }
-        j += 1;   
-    }
-    output[1] = match average(outer_buffer.clone()) {
-        Ok(avg) => avg,
-        Err(e) => {
-            println!("Error calculating average for inner buffer: {}", e);
-            0 // Default value in case of error
-        }
-    };
-    return output;
+
+    buffer
 }
 
 

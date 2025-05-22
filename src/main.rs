@@ -124,19 +124,22 @@ async fn main() {
     let internal_map_2 = manager_channel_map.clone();
 
     // run initialization tasks
-    
+    let init_request = Request {
+        resource: Resource::Emg as i32,
+        task_code: "CALIBRATE".to_string(),
+        task_data: None,
+    };
+
+    server::dispatch_task(init_request, &internal_map_1);
     
     // Start constant loop - creates requests every X seconds depending on manager
     tokio::spawn(async move {
         server::monitor_events(internal_map_2).await;    
     });
     
-
     // Keep the runtime alive indefinitely
     loop {
         tokio::time::sleep(tokio::time::Duration::from_secs(3600)).await;
     }
-
-
     
 }

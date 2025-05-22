@@ -620,6 +620,7 @@ dependencies = [
  "cyclic_list",
  "embedded-hal",
  "env_logger",
+ "gpio-cdev",
  "http-body-util",
  "hyper",
  "hyper-util",
