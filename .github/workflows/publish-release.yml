@@ -7,6 +7,6 @@ on:
 
 jobs:
   call-build-with-release:
-    uses: ./.github/workflows/build-rpi.yml
+    uses: ./.github/workflows/build-for-pi.yml
     with:
       publish-release: true
