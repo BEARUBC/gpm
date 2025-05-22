@@ -6,7 +6,7 @@ on:
       - 'v*'
 
 jobs:
-  build:
+  call-build-with-release:
     uses: ./.github/workflows/build-rpi.yml
     with:
       publish-release: true

@@ -6,7 +6,7 @@ on:
       - main
 
 jobs:
-  build:
+  call-build:
     uses: ./.github/workflows/build-for-pi.yml
     with:
       publish-release: false
