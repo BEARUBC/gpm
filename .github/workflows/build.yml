@@ -21,7 +21,7 @@ jobs:
           targets: armv7-unknown-linux-gnueabihf
 
       - name: Install cross-compilation dependencies
-        run: sudo apt-get update && sudo apt-get install -y gcc-arm-linux-gnueabihf
+        run: sudo apt-get update && sudo apt-get install -y protobuf-compiler && sudo apt-get install -y gcc-arm-linux-gnueabihf
 
       - name: Build for Raspberry Pi (2/3/4)
         run: |
