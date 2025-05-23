@@ -35,7 +35,7 @@ use crate::sgcp::maestro::*;
 use crate::todo;
 use crate::verify_channel_data;
 
-use rppal::pwm::{Channel, Polarity, Pwm};
+use rppal::pwm::{Channel as Channel2, Polarity, Pwm};
 
 macro_rules! set_target { 
     ($metadata:expr, $($channel:ident => $target:ident),*) => {
@@ -75,7 +75,7 @@ impl ResourceManager for Manager<Maestro> {
     /// Handles all Maestro-related tasks // todo: convert this to collect things from the EMG manager
     async fn handle_task(&mut self, channel_data: ManagerChannelData) -> Result<()> {
         let mut pwm = Pwm::with_frequency(
-            Channel::Pwm0,         // GPIO18 (Physical pin 12)
+            Channel2::Pwm0,         // GPIO18 (Physical pin 12)
             50.0,                  // 50Hz for standard servo
             0.0,                   // Start with 0% duty cycle
             Polarity::Normal,

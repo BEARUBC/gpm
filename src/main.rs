@@ -69,6 +69,7 @@ macro_rules! init_resource_managers { // .run is called here for each manager, a
 /// Starts monitoring GPIO pins for muscle activity and triggers appropriate tasks.
 /// This is for when the code for the EMG wasn't working and we wanted experiment while using a button on the maestro
 /// Change this code to not take data from analytics module but from emg manager
+/* 
 #[cfg(feature = "pi")]
 async fn start_monitoring_pin(maestro_tx: Sender<ManagerChannelData>) {
     info!("Started GPIO pin monitor for pin {:?}", PIN_TO_MONITOR);
@@ -97,7 +98,7 @@ async fn start_monitoring_pin(maestro_tx: Sender<ManagerChannelData>) {
         sleep(Duration::from_millis(100)).await;
     }
 }
-
+*/
 /// Main entry point for the bionic arm system.
 /// Initializes all resource managers, telemetry, and starts the TCP server.
 #[tokio::main]

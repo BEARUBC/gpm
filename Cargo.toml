@@ -37,5 +37,5 @@ gpio-cdev = "0.6.0"
 prost-build = { version = "0.12" }
 
 [features]
-pi = ["dep:raestro", "dep:rppal"]
+pi = ["dep:raestro"]
 dev = ["dep:console-subscriber"]
