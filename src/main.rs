@@ -131,7 +131,7 @@ async fn main() {
         task_data: None,
     };
 
-    server::dispatch_task(init_request, &internal_map_1);
+    server::dispatch_task(init_request, &internal_map_1).await;
     
     // Start constant loop - creates requests every X seconds depending on manager
     tokio::spawn(async move {
