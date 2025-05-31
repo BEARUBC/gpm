@@ -17,6 +17,11 @@ use log::*;
 /// Represents a BMS resource
 pub struct Bms {
     // TODO: @krarpit Implement BMS interface
+    // BMS health report by Elin
+    pub voltage: f32,
+    pub temperature: f32,
+    pub charge_percent: u8,
+    pub status: String,
 }
 
 impl Resource for Bms {
@@ -30,17 +35,34 @@ impl Resource for Bms {
 }
 
 impl ResourceManager for Manager<Bms> {
-    type ResourceType = Bms;
+    run!(Bms);
+
     /// Handles all BMS-related tasks
     async fn handle_task(&mut self, channel_data: ManagerChannelData) -> Result<()> {
-        let (task, _, send_channel) =
+        let (task, task_data, send_channel) =
             parse_channel_data!(channel_data, Task, BmsData).map_err(|e: Error| e)?;
+        
+        //these are sample data!
+        let health_report = BmsHealthReport {
+            voltage: 12.6,
+            temperature: 29.4,
+            charge_percent: 82,
+            status: "nominal".to_string(),
+        };
+        
+        // To do: Add ""::Responder::respond()"" 
+        // or convert the code below to "send_channel.send(...)" 
+        // -> refer to Krisha's code below
+        Responder::respond(health_report, send_channel)?;
+
         match task {
             Task::UndefinedTask => todo!(),
             Task::GetHealthMetrics => todo!(),
+            Task::GetChargeStatus => todo!(),
+            Task::ShutDownBattery => todo!(),
         }
-        Ok(send_channel
-            .send(TASK_SUCCESS.to_string())
-            .map_err(|e| anyhow!("Send Failed: {e}"))?)
+        send_channel.send(TASK_SUCCESS.to_string());
+        Ok(())
     }
 }
+
