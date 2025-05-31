@@ -19,7 +19,7 @@ pub struct TelemetryConfig {
 
 #[derive(Debug, Deserialize)]
 pub struct GpioMonitorConfig {
-    pub pin: i32,
+    pub pin: u8,
 }
 
 #[derive(Debug, Deserialize)]

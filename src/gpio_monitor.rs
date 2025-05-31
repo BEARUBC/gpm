@@ -28,7 +28,7 @@ pub async fn run_gpio_monitor_loop(maestro_tx: Sender<ManagerChannelData>) {
         );
 
         let gpio = Gpio::new().expect("Failed to initialize GPIO");
-        let mut pin = gpio
+        let pin = gpio
             .get(gpio_monitor_config.pin)
             .expect("Failed to access pin")
             .into_input_pullup();
