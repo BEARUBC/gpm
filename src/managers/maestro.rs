@@ -37,6 +37,12 @@ use crate::verify_channel_data;
 
 use rppal::pwm::{Channel as Channel2, Polarity, Pwm};
 
+// testing constants
+const PERIOD_MS: u64 = 20;
+const PULSE_MIN_US: u64 = 1200;
+const PULSE_NEUTRAL_US: u64 = 1500;
+const PULSE_MAX_US: u64 = 1800;
+
 macro_rules! set_target { 
     ($metadata:expr, $($channel:ident => $target:ident),*) => {
         $metadata.controller.set_target($channel, $target).unwrap();
@@ -74,10 +80,10 @@ impl ResourceManager for Manager<Maestro> {
 
     /// Handles all Maestro-related tasks // todo: convert this to collect things from the EMG manager
     async fn handle_task(&mut self, channel_data: ManagerChannelData) -> Result<()> {
-        let mut pwm = Pwm::with_frequency(
-            Channel2::Pwm0,         // GPIO18 (Physical pin 12)
-            50.0,                  // 50Hz for standard servo
-            0.0,                   // Start with 0% duty cycle
+        let pwm = Pwm::with_period(
+            Channel2::Pwm0,
+            Duration::from_millis(PERIOD_MS),
+            Duration::from_micros(PULSE_MAX_US),
             Polarity::Normal,
             true,
         )?;
@@ -90,13 +96,13 @@ impl ResourceManager for Manager<Maestro> {
             },
             Task::OpenFist => {
                 {
-                    pwm.set_duty_cycle(0.10)?;
+                    pwm.set_pulse_width(Duration::from_micros(PULSE_MAX_US))?;
                     TASK_SUCCESS.to_string()
                 }
             },
             Task::CloseFist => {
                 {
-                    pwm.set_duty_cycle(0.05)?;
+                    pwm.set_pulse_width(Duration::from_micros(PULSE_MIN_US))?;
                     TASK_SUCCESS.to_string()
                 }
             },
