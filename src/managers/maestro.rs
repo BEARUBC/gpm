@@ -35,14 +35,6 @@ use crate::sgcp::maestro::*;
 use crate::todo;
 use crate::verify_channel_data;
 
-use rppal::pwm::{Channel as Channel2, Polarity, Pwm};
-
-// testing constants
-const PERIOD_MS: u64 = 20;
-const PULSE_MIN_US: u64 = 1200;
-const PULSE_NEUTRAL_US: u64 = 1500;
-const PULSE_MAX_US: u64 = 1800;
-
 macro_rules! set_target { 
     ($metadata:expr, $($channel:ident => $target:ident),*) => {
         $metadata.controller.set_target($channel, $target).unwrap();
@@ -80,13 +72,6 @@ impl ResourceManager for Manager<Maestro> {
 
     /// Handles all Maestro-related tasks // todo: convert this to collect things from the EMG manager
     async fn handle_task(&mut self, channel_data: ManagerChannelData) -> Result<()> {
-        let pwm = Pwm::with_period(
-            Channel2::Pwm0,
-            Duration::from_millis(PERIOD_MS),
-            Duration::from_micros(PULSE_MAX_US),
-            Polarity::Normal,
-            true,
-        )?;
         let (task, task_data, send_channel) =
             parse_channel_data!(channel_data, Task, MaestroData).map_err(|e: Error| e)?;
         let res: String = match task {
@@ -95,14 +80,36 @@ impl ResourceManager for Manager<Maestro> {
                 UNDEFINED_TASK.to_string()
             },
             Task::OpenFist => {
+                #[cfg(not(feature = "pi"))]
                 {
-                    pwm.set_pulse_width(Duration::from_micros(PULSE_MAX_US))?;
+                    not_on_pi!();
+                    TASK_SUCCESS.to_string()
+                }
+                #[cfg(feature = "pi")]
+                {
+                    set_target!(
+                        self.metadata,
+                        Channel::Channel0 => MIN_QTR_PWM,
+                        Channel::Channel1 => MIN_QTR_PWM,
+                        Channel::Channel2 => MIN_QTR_PWM
+                    );
                     TASK_SUCCESS.to_string()
                 }
             },
             Task::CloseFist => {
+                #[cfg(not(feature = "pi"))]
                 {
-                    pwm.set_pulse_width(Duration::from_micros(PULSE_MIN_US))?;
+                    not_on_pi!();
+                    TASK_SUCCESS.to_string()
+                }
+                #[cfg(feature = "pi")]
+                {
+                    set_target!(
+                        self.metadata,
+                        Channel::Channel0 => MAX_QTR_PWM,
+                        Channel::Channel1 => MAX_QTR_PWM,
+                        Channel::Channel2 => MAX_QTR_PWM
+                    );
                     TASK_SUCCESS.to_string()
                 }
             },
