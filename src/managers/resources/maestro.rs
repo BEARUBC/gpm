@@ -2,20 +2,20 @@
 
 #![allow(unused_imports)] // Silence warnings because of cfg-gated code
 
+use crate::managers::macros::parse_channel_data;
 use crate::managers::Manager;
 use crate::managers::ManagerChannelData;
 use crate::managers::Resource;
 use crate::managers::ResourceManager;
 use crate::managers::TASK_SUCCESS;
-use crate::managers::macros::parse_channel_data;
 use crate::not_on_pi;
 use crate::request::TaskData::MaestroData;
 use crate::sgcp;
 use crate::sgcp::maestro::Task as MaestroTask;
 use crate::sgcp::maestro::*;
+use anyhow::anyhow;
 use anyhow::Error;
 use anyhow::Result;
-use anyhow::anyhow;
 use log::*;
 #[cfg(feature = "pi")]
 use raestro::maestro::{
@@ -59,7 +59,7 @@ impl ResourceManager for Manager<Maestro> {
             parse_channel_data!(channel_data, MaestroTask, MaestroData).map_err(|e: Error| e)?;
 
         #[cfg(feature = "pi")]
-        let controller = self.resource.controller;
+        let controller = &mut self.resource.controller;
 
         let task_result = match task {
             MaestroTask::UndefinedTask => {
