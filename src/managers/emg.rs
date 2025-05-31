@@ -29,6 +29,7 @@ use std::{error::Error as StdError, io, io::Write, thread, time::Duration};
 
 const DEFAULT_BUFFER_SIZE: usize = 100;
 const SPI_DEVICE_PATH: &str = "/dev/spidev0.0";
+const PAUSE_DURATION_MS: u64 = 500; // Pause duration in milliseconds
 
 fn average(list: Vec<u16>) -> Result<u16, &'static str> {
     if list.is_empty() {
@@ -50,7 +51,7 @@ pub struct Emg {
 
 impl Resource for Emg {
     fn init() -> Self {
-        let spi = Spi::new(Bus::Spi0, SlaveSelect::Ss0, 1_000_000, Mode::Mode0);
+        let spi = Spi::new(Bus::Spi0, SlaveSelect::Ss0, 500_000, Mode::Mode0);
         if spi.is_err() {
             error!("Failed to initialize SPI: {:?}", spi.err());
             panic!("Failed to initialize SPI");
@@ -129,7 +130,15 @@ fn process_data(values: Vec<u16>, inner_threshold: u16, outer_threshold: u16) ->
         return Err("Expected 2 EMG values".into());
     }
 
+    /* 
     if values[0] >= inner_threshold && values[1] <= outer_threshold {
+        Ok(1) // Open
+    } else {
+        Ok(0) // Close
+    }
+    */
+
+    if values[0] >= inner_threshold{
         Ok(1) // Open
     } else {
         Ok(0) // Close
@@ -168,6 +177,7 @@ fn read_samples(channel: u8, sample_count: usize, spi: &mut Spi, label: &str) ->
             Ok(value) => buffer.push(value),
             Err(_) => println!("Error reading SPI on channel {channel} during {label}"),
         }
+        thread::sleep(Duration::from_millis(PAUSE_DURATION_MS as u64));
     }
 
     buffer

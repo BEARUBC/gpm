@@ -188,7 +188,8 @@ async fn process_emg_idle_task(manager_channel_map: &ManagerChannelMap) {
 
 // idle tasks
 pub async fn monitor_events(manager_channel_map: ManagerChannelMap) {
-    let mut EMG_idle = interval(Duration::from_millis(2)); // 500 Hz sampling rate
+    //let mut EMG_idle = interval(Duration::from_millis(2)); // 500 Hz sampling rate
+    let mut EMG_idle = interval(Duration::from_millis(1000)); // 1 Hz sampling rate
 
     loop {
         tokio::select! {
