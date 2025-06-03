@@ -82,15 +82,10 @@ async fn main() {
         sgcp::Resource::Bms => Manager::<Bms>::new(),
         sgcp::Resource::Emg => Manager::<Emg>::new(),
         sgcp::Resource::Maestro => Manager::<Maestro>::new()
-    let manager_channel_map = managers::macros::init_resource_managers! {
-        sgcp::Resource::Bms => Manager::<Bms>::new(),
-        sgcp::Resource::Emg => Manager::<Emg>::new(),
-        sgcp::Resource::Maestro => Manager::<Maestro>::new()
     };
 
     // Spawn the telemetry exporter as an independent async task.
     tokio::spawn(async {
-        let mut exporter = telemetry::Exporter::new();
         let mut exporter = telemetry::Exporter::new();
         exporter.init().await
     });
