@@ -5,6 +5,8 @@ mod managers;
 mod server;
 mod telemetry;
 
+use std::collections::HashMap;
+
 use config::CommandDispatchStrategy;
 use config::Config;
 use log::*;
@@ -15,8 +17,8 @@ use managers::ResourceManager;
 use managers::resources::bms::Bms;
 use managers::resources::emg::Emg;
 use managers::resources::maestro::Maestro;
-use std::collections::HashMap;
 use tokio::sync::mpsc::Sender;
+mod haptics_controller;
 
 /// Represents the mapping between resource manager keys and the tx component
 /// of the resource manager's MPSC channel
@@ -45,6 +47,8 @@ async fn main() {
         let mut exporter = telemetry::Exporter::new();
         exporter.init().await
     });
+
+    let _ = haptics_controller::start();
 
     match Config::global().command_dispatch_strategy {
         CommandDispatchStrategy::Server => server::run_server_loop(manager_channel_map).await,
