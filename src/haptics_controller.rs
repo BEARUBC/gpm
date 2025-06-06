@@ -1,5 +1,6 @@
 // use std::error::Error;
 
+use log::info;
 #[cfg(feature = "pi")]
 use rppal::spi::Bus;
 #[cfg(feature = "pi")]
@@ -11,6 +12,7 @@ use rppal::spi::Spi;
 
 pub fn start() -> Result<(), Box<dyn std::error::Error>> {
     #[cfg(feature = "pi")]
+    info!("Haptics Controller starting");
     let spi = Spi::new(Bus::Spi0, SlaveSelect::Ss0, 1_350_000, Mode::Mode0)?;
 
     let tx_buf: [u8; 3] = [

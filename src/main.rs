@@ -18,6 +18,7 @@ use managers::resources::bms::Bms;
 use managers::resources::emg::Emg;
 use managers::resources::maestro::Maestro;
 use tokio::sync::mpsc::Sender;
+use tokio::task;
 mod haptics_controller;
 
 /// Represents the mapping between resource manager keys and the tx component
@@ -48,7 +49,12 @@ async fn main() {
         exporter.init().await
     });
 
-    let _ = haptics_controller::start();
+    // spawn a blocking function
+    task::spawn_blocking(|| {
+        if let Err(err) = haptics_controller::start() {
+            eprintln!("Haptics controller failed: {err}")
+        }
+    });
 
     match Config::global().command_dispatch_strategy {
         CommandDispatchStrategy::Server => server::run_server_loop(manager_channel_map).await,
