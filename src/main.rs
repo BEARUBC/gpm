@@ -73,10 +73,6 @@ async fn main() {
     console_subscriber::init(); // Used for Tokio runtime diagnostics
     config::logger_init();
 
-    console_subscriber::init();
-
-    // Load configuration settings (e.g., logging level, server addresses).
-    config::logger_init();
     // Initialize resource managers and their communication channels.
     let manager_channel_map = managers::macros::init_resource_managers! {
         sgcp::Resource::Bms => Manager::<Bms>::new(),
@@ -102,11 +98,6 @@ async fn main() {
             .await;
         },
         CommandDispatchStrategy::Internal => server::monitor_events(manager_channel_map).await,
-    }
-    
-    // Keep the runtime alive indefinitely
-    loop {
-        tokio::time::sleep(tokio::time::Duration::from_secs(3600)).await;
     }
     
 }

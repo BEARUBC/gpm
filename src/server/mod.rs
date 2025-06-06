@@ -125,23 +125,40 @@ async fn dispatch_task(
     )
 }
 
-// nicks BS VV
 
-// move this somewhere else
-// event-driven task generation
-// This function is responsible for monitoring events and generating requests
-// based on those events. It uses a timer to trigger periodic tasks and
-// simulates an event-driven architecture.
-async fn handle_emg_idle_response(response: &str, manager_channel_map: &ManagerChannelMap) {
-    let (task_code, resource) = match response {
-        "OPEN HAND" => ("OPEN_FIST", sgcp::Resource::Maestro),
-        "CLOSE HAND" => ("CLOSE_FIST", sgcp::Resource::Maestro),
-        _ => {
-            error!("Unexpected response: {}", response);
-            return;
+/// Handles idle responses for a given resource and task code mapping
+async fn handle_idle_response(
+    response: &str,
+    manager_channel_map: &ManagerChannelMap,
+    response_mapping: &[(String, String, sgcp::Resource)],
+) {
+    if let Some((task_code, resource)) = response_mapping
+        .iter()
+        .find(|(resp, _, _)| resp == response)
+        .map(|(_, task_code, resource)| (task_code.clone(), *resource))
+    {
+        let request = sgcp::Request {
+            resource: resource as i32,
+            task_code: task_code,
+            task_data: None,
+        };
+
+        match dispatch_task(request, manager_channel_map).await {
+            Ok(res) => info!("Task succeeded: {:?}", res),
+            Err(e) => error!("Task failed: {:?}", e),
         }
-    };
+    } else {
+        error!("Unexpected response: {}", response);
+    }
+}
 
+/// Processes idle tasks for a given resource
+pub async fn process_idle_task(
+    manager_channel_map: &ManagerChannelMap,
+    resource: sgcp::Resource,
+    task_code: &str,
+    response_mapping: &[(String, String, sgcp::Resource)],
+) {
     let request = sgcp::Request {
         resource: resource as i32,
         task_code: task_code.to_string(),
@@ -149,20 +166,7 @@ async fn handle_emg_idle_response(response: &str, manager_channel_map: &ManagerC
     };
 
     match dispatch_task(request, manager_channel_map).await {
-        Ok(res) => info!("Task succeeded: {:?}", res), // need to return a string here
-        Err(e) => error!("Task failed: {:?}", e),
-    }
-}
-
-async fn process_emg_idle_task(manager_channel_map: &ManagerChannelMap) {
-    let request = sgcp::Request {
-        resource: sgcp::Resource::Emg as i32,
-        task_code: "IDLE".to_string(),
-        task_data: None,
-    };
-
-    match dispatch_task(request, manager_channel_map).await {
-        Ok(res) => handle_emg_idle_response(res.as_str(), manager_channel_map).await,
+        Ok(res) => handle_idle_response(res.as_str(), manager_channel_map, response_mapping).await,
         Err(err) => {
             error!("An error occurred when dispatching task; error={err}");
             log::error!("Failed to dispatch maintenance task: {:?}", err);
@@ -178,12 +182,20 @@ pub async fn monitor_events(manager_channel_map: ManagerChannelMap) {
 
     //let mut EMG_idle = interval(Duration::from_millis(2)); // 500 Hz sampling rate
     let mut EMG_idle = interval(Duration::from_millis(1000)); // 1 Hz sampling rate
+    let EMG_response_mapping = vec![
+        ("OPEN HAND".to_string(), "OPEN_FIST".to_string(), sgcp::Resource::Maestro),
+        ("CLOSE HAND".to_string(), "CLOSE_FIST".to_string(), sgcp::Resource::Maestro),
+    ];
+    // let mut HAPTICS_idle = interval(Duration::from_millis(1000)); // 1 Hz sampling rate // example for haptics
     let send_channel_map = manager_channel_map.clone();
     loop {
         tokio::select! {
             _ = EMG_idle.tick() => {
-                process_emg_idle_task(&send_channel_map).await;
+                process_idle_task(&send_channel_map, sgcp::Resource::Emg, "IDLE", &EMG_response_mapping).await;
             }
+            // _ = HAPTICS_idle.tick() => {
+            //     // handle haptics idle task here
+            // }
         }
     }
 }
@@ -195,6 +207,8 @@ pub async fn init_tasks(manager_channel_map: ManagerChannelMap){
         task_code: "CALIBRATE".to_string(),
         task_data: None,
     };
+
+    // can also add maestro init, move all motors to home position, 0
     let init_map = manager_channel_map.clone();
 
     dispatch_task(init_request, &init_map).await;

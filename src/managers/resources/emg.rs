@@ -26,13 +26,14 @@ use tokio::sync::mpsc::Receiver;
 use tokio::sync::mpsc::Sender;
 
 
-
+use rppal::gpio::{Gpio, OutputPin};
 use rppal::spi::{Bus, Mode, SlaveSelect, Spi};
 use std::{error::Error as StdError, io, io::Write, thread, time::Duration};
 
 const DEFAULT_BUFFER_SIZE: usize = 100;
 const SPI_DEVICE_PATH: &str = "/dev/spidev0.0";
 const PAUSE_DURATION_MS: u64 = 500; // Pause duration in milliseconds
+const GPIO_MANUAL_CS: u8 = 17; // GPIO pin for manual CS
 
 fn average(list: Vec<u16>) -> Result<u16, &'static str> {
     if list.is_empty() {
@@ -50,6 +51,7 @@ pub struct Emg {
     outer_read_buffer_size: usize,
     inner_threshold: u16,
     outer_threshold: u16,
+    cs_pin: OutputPin,
 }
 
 impl Resource for Emg {
@@ -60,12 +62,31 @@ impl Resource for Emg {
             panic!("Failed to initialize SPI");
         }
 
+        let gpio = match Gpio::new() {
+            Ok(gpio) => gpio,
+            Err(e) => {
+                error!("Failed to initialize Manual CS: {:?}", e);
+                panic!("Failed to initialize Manual CS");
+            }
+        };
+
+        let mut cs = match gpio.get(GPIO_MANUAL_CS) {
+            Ok(pin) => pin.into_output(),
+            Err(e) => {
+                error!("Failed to get GPIO pin: {:?}", e);
+                panic!("Failed to get GPIO pin");
+            }
+        };
+        
+        cs.set_high();
+        
         let emg = Emg {
             spi: spi.unwrap(),
             inner_read_buffer_size: DEFAULT_BUFFER_SIZE,
             outer_read_buffer_size: DEFAULT_BUFFER_SIZE,
             inner_threshold: 0,
             outer_threshold: 0,
+            cs_pin: cs,
         };
         emg
     }
@@ -88,9 +109,9 @@ impl ResourceManager for Manager<Emg> {
                 Err(Error::msg("Encountered an undefined task type"))
             }
             Task::Idle => {
-                match adc::read_adc_channels(&[0, 1], &mut self.resource.spi) {
+                match adc::read_adc_channels(&[0, 1], &mut self.resource.cs_pin, &mut self.resource.spi) {
                     Ok(value) => {
-                        info!("EMG ADC Channel 0 value: {:?}", value);
+                        info!("EMG ADC Channel 0,1 value: {:?}", value);
                         match adc::process_data(value, self.resource.inner_threshold, self.resource.outer_threshold) {
                             Ok(grip_state) => {
                                 info!("Grip state: {:?}", grip_state);
@@ -115,7 +136,7 @@ impl ResourceManager for Manager<Emg> {
                 }
             }
             Task::Calibrate => {
-                let thresholds = adc::calibrate_emg(DEFAULT_BUFFER_SIZE, DEFAULT_BUFFER_SIZE, &mut self.resource.spi);
+                let thresholds = adc::calibrate_emg(DEFAULT_BUFFER_SIZE, DEFAULT_BUFFER_SIZE, &mut self.resource.spi, &mut self.resource.cs_pin);
                 self.resource.inner_threshold = thresholds[0];
                 self.resource.outer_threshold = thresholds[1];
                 Ok(TASK_SUCCESS.to_string())
