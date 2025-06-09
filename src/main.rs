@@ -50,8 +50,8 @@ async fn main() {
     });
 
     // spawn a blocking function
-    task::spawn_blocking(|| {
-        if let Err(err) = haptics_controller::start() {
+    task::spawn(async {
+        if let Err(err) = haptics_controller::start().await {
             eprintln!("Haptics controller failed: {err}")
         }
     });
