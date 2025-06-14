@@ -27,6 +27,7 @@ pub struct GpioMonitorConfig {
 pub enum CommandDispatchStrategy {
     Server,
     GpioMonitor,
+    Internal,
 }
 
 impl Default for CommandDispatchStrategy {
