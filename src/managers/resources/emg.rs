@@ -1,6 +1,4 @@
 // All tasks operating on the EMG system live in this file
-// NOTE: All EMG proccessing will now be handled on the Jetson Nano instead of GPM. Leaving
-//       this file here in case we decide to implement an EMG interface for GPM anyway.
 
 extern crate rppal;
 
@@ -13,49 +11,34 @@ use crate::managers::macros::parse_channel_data;
 use crate::request::TaskData::EmgData;
 use crate::sgcp;
 use crate::sgcp::emg::*;
-use crate::todo;
 use crate::managers::resources::adc;
+use crate::config::Config;
 use anyhow::Error;
 use anyhow::Result;
 use anyhow::anyhow;
 use log::*;
 
 
-use tokio::sync::mpsc::channel;
-use tokio::sync::mpsc::Receiver;
-use tokio::sync::mpsc::Sender;
-
-
 use rppal::gpio::{Gpio, OutputPin};
 use rppal::spi::{Bus, Mode, SlaveSelect, Spi};
-use std::{error::Error as StdError, io, io::Write, thread, time::Duration};
-
-const DEFAULT_BUFFER_SIZE: usize = 100;
-const SPI_DEVICE_PATH: &str = "/dev/spidev0.0";
-const PAUSE_DURATION_MS: u64 = 500; // Pause duration in milliseconds
-const GPIO_MANUAL_CS: u8 = 17; // GPIO pin for manual CS
-
-fn average(list: Vec<u16>) -> Result<u16, &'static str> {
-    if list.is_empty() {
-        Err("Cannot calculate average of an empty list")
-    } else {
-        let sum: u32 = list.iter().map(|&x| x as u32).sum();
-        Ok((sum / list.len() as u32) as u16)
-    }
-}
-
 
 pub struct Emg {
     spi: Spi,
-    inner_read_buffer_size: usize,
-    outer_read_buffer_size: usize,
+    buffer_size: usize,
     inner_threshold: u16,
     outer_threshold: u16,
     cs_pin: OutputPin,
+    inter_channel_sample_duration: u64, // different from sampling speed, this is the time between reading the inner and outer channels
 }
 
 impl Resource for Emg {
     fn init() -> Self {
+
+        let emg_config = Config::global()
+        .emg_sensor
+        .as_ref()
+        .expect("Expected emg config to be defined");
+
         let spi = Spi::new(Bus::Spi0, SlaveSelect::Ss0, 500_000, Mode::Mode0);
         if spi.is_err() {
             error!("Failed to initialize SPI: {:?}", spi.err());
@@ -70,7 +53,7 @@ impl Resource for Emg {
             }
         };
 
-        let mut cs = match gpio.get(GPIO_MANUAL_CS) {
+        let mut cs = match gpio.get(emg_config.cs_pin) {
             Ok(pin) => pin.into_output(),
             Err(e) => {
                 error!("Failed to get GPIO pin: {:?}", e);
@@ -82,11 +65,11 @@ impl Resource for Emg {
         
         let emg = Emg {
             spi: spi.unwrap(),
-            inner_read_buffer_size: DEFAULT_BUFFER_SIZE,
-            outer_read_buffer_size: DEFAULT_BUFFER_SIZE,
+            buffer_size: emg_config.buffer_size,
             inner_threshold: 0,
             outer_threshold: 0,
             cs_pin: cs,
+            inter_channel_sample_duration: emg_config.pause_duration_ms,
         };
         emg
     }
@@ -136,10 +119,22 @@ impl ResourceManager for Manager<Emg> {
                 }
             }
             Task::Calibrate => {
-                let thresholds = adc::calibrate_emg(DEFAULT_BUFFER_SIZE, DEFAULT_BUFFER_SIZE, &mut self.resource.spi, &mut self.resource.cs_pin);
-                self.resource.inner_threshold = thresholds[0];
-                self.resource.outer_threshold = thresholds[1];
-                Ok(TASK_SUCCESS.to_string())
+                match adc::calibrate_emg(
+                    self.resource.buffer_size,
+                    &mut self.resource.spi,
+                    &mut self.resource.cs_pin,
+                    self.resource.inter_channel_sample_duration,
+                ) {
+                    Ok(thresholds) => {
+                        self.resource.inner_threshold = thresholds[0];
+                        self.resource.outer_threshold = thresholds[1];
+                        Ok(TASK_SUCCESS.to_string())
+                    }
+                    Err(e) => {
+                        error!("Calibration failed: {:?}", e);
+                        Err(Error::msg(format!("Calibration failed: {}", e)))
+                    }
+                }
             }
             Task::Abort => {
                 info!("Aborting EMG task");

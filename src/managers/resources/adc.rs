@@ -1,36 +1,16 @@
 extern crate rppal;
 
-use crate::managers::Manager;
-use crate::managers::ManagerChannelData;
-use crate::managers::Resource;
-use crate::managers::ResourceManager;
-use crate::managers::TASK_SUCCESS;
-use crate::managers::macros::parse_channel_data;
-use crate::request::TaskData::EmgData;
-use crate::sgcp;
-use crate::sgcp::emg::*;
-use crate::todo;
-use anyhow::Error;
 use anyhow::Result;
-use anyhow::anyhow;
+use anyhow::Error;
 use log::*;
-use rppal::gpio::{Gpio, OutputPin};
-use rppal::spi::{Bus, Mode, SlaveSelect, Spi};
-use std::process::Output;
-use std::{error::Error as StdError, io, io::Write, thread, time::Duration};
 
+use rppal::gpio::{OutputPin};
+use rppal::spi::{Spi};
+use std::{io, thread, time::Duration};
 
-use tokio::sync::mpsc::channel;
-use tokio::sync::mpsc::Receiver;
-use tokio::sync::mpsc::Sender;
-
-const DEFAULT_BUFFER_SIZE: usize = 100;
-const SPI_DEVICE_PATH: &str = "/dev/spidev0.0";
-const PAUSE_DURATION_MS: u64 = 500; // Pause duration in milliseconds
-
-pub fn process_data(values: Vec<u16>, inner_threshold: u16, outer_threshold: u16) -> Result<i32, Box<dyn StdError>> {
+pub fn process_data(values: Vec<u16>, inner_threshold: u16, outer_threshold: u16) -> Result<i32> {
     if values.len() != 2 {
-        return Err("Expected 2 EMG values".into());
+        return Err(Error::msg("Expected 2 EMG values"));
     }
 
     if values[0] >= inner_threshold && values[1] <= outer_threshold{
@@ -43,60 +23,63 @@ pub fn process_data(values: Vec<u16>, inner_threshold: u16, outer_threshold: u16
     }
 }
 
-fn average(list: Vec<u16>) -> Result<u16, &'static str> {
+fn average(list: Vec<u16>) -> Result<u16> {
     if list.is_empty() {
-        Err("Cannot calculate average of an empty list")
+        return Err(Error::msg("Cannot calculate average of an empty list"));
     } else {
         let sum: u32 = list.iter().map(|&x| x as u32).sum();
         Ok((sum / list.len() as u32) as u16)
     }
 }
     
-pub fn calibrate_emg(inner_read_buffer_size: usize, outer_read_buffer_size: usize, spi: &mut Spi, cs: &mut OutputPin) -> [u16; 2] {
-    let inner_buffer = read_samples(0, cs, inner_read_buffer_size, spi, "inner");
+pub fn calibrate_emg(buffer_size : usize, spi: &mut Spi, cs: &mut OutputPin, pause_duration : u64) -> Result<[u16; 2]> {
+    let inner_buffer = read_samples(0, cs, buffer_size, spi, "inner", pause_duration);
 
-    print!("\nFinished inner sampling. Press ENTER when you're ready to start outer sampling...");
-    io::stdout().flush().unwrap();
+    info!("\nFinished inner sampling. Press ENTER when you're ready to start outer sampling...");
+
     let _ = io::stdin().read_line(&mut String::new());
 
-    let outer_buffer = read_samples(1, cs, outer_read_buffer_size, spi, "outer");
+    let outer_buffer = read_samples(1, cs, buffer_size, spi, "outer", pause_duration);
 
     let avg_inner = average(inner_buffer.clone()).unwrap_or_else(|e| {
-        println!("Error calculating average for inner buffer: {}", e);
+        info!("Error calculating average for inner buffer: {}", e);
         0
     });
 
     let avg_outer = average(outer_buffer.clone()).unwrap_or_else(|e| {
-        println!("Error calculating average for outer buffer: {}", e);
+        info!("Error calculating average for outer buffer: {}", e);
         0
     });
 
-    [avg_inner, avg_outer]
+    Ok([avg_inner, avg_outer])
 }
 
-pub fn read_samples(channel: u8, cs: &mut OutputPin, sample_count: usize, spi: &mut Spi, label: &str) -> Vec<u16> {
+pub fn read_samples(channel: u8, cs: &mut OutputPin, sample_count: usize, spi: &mut Spi, label: &str, pause_duration : u64) -> Vec<u16> {
     let mut buffer = Vec::with_capacity(sample_count);
-    println!("Flex {label}");
+    info!("Flex {label}");
 
     while buffer.len() < sample_count {
         match read_adc_channel(channel, cs, spi) {
             Ok(value) => buffer.push(value),
-            Err(_) => println!("Error reading SPI on channel {channel} during {label}"),
+            Err(_) => info!("Error reading SPI on channel {channel} during {label}"),
         }
-        thread::sleep(Duration::from_millis(PAUSE_DURATION_MS as u64));
+        thread::sleep(Duration::from_millis(pause_duration));
     }
 
     buffer
 }
 
 
-pub fn read_adc_channels(channels: &[u8], cs: &mut OutputPin, spi: &mut Spi) -> Result<Vec<u16>, Box<dyn StdError>> {
-    channels.iter().map(|&channel| read_adc_channel(channel, cs, spi)).collect()
+pub fn read_adc_channels(channels: &[u8], cs: &mut OutputPin, spi: &mut Spi) -> Result<Vec<u16>> {
+    channels
+        .iter()
+        .map(|&channel| read_adc_channel(channel, cs, spi))
+        .collect::<Result<Vec<u16>, anyhow::Error>>()
 }
 
-pub fn read_adc_channel(channel: u8, cs: &mut OutputPin, spi: &mut Spi) -> Result<u16, Box<dyn StdError>> {
+pub fn read_adc_channel(channel: u8, cs: &mut OutputPin, spi: &mut Spi) -> Result<u16> {
     if channel > 7 {
-        return Err("Invalid channel. Must be between 0 and 7.".into());
+        return Err(Error::msg("Invalid channel. Must be between 0 and 7."));
     }
 
     let start_bit = 0b00000001;

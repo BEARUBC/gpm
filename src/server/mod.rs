@@ -18,7 +18,6 @@ use tokio::sync::Semaphore;
 use tokio::sync::oneshot;
 use tokio::time::{interval, Duration};
 
-
 /// Starts the main TCP listener loop -- can handle at most MAX_CONCURRENT_CONNECTIONS connections
 /// at any given time
 pub async fn run_server_loop(manager_channel_map: ManagerChannelMap) {
@@ -180,9 +179,13 @@ pub async fn monitor_events(manager_channel_map: ManagerChannelMap) {
     // init
     init_tasks(manager_channel_map.clone()).await;
 
-    //let mut EMG_idle = interval(Duration::from_millis(2)); // 500 Hz sampling rate
-    let mut EMG_idle = interval(Duration::from_millis(1000)); // 1 Hz sampling rate
-    let EMG_response_mapping = vec![
+    let emg_config = Config::global()
+        .emg_sensor
+        .as_ref()
+        .expect("Expected EMG config to be defined");
+
+    let mut emg_idle = interval(Duration::from_millis(emg_config.sampling_speed_ms));  // 1000 ms for 1 Hz sampling rate for idle tasks, 2 ms for 500 Hz sampling rate
+    let emg_response_mapping = vec![
         ("OPEN HAND".to_string(), "OPEN_FIST".to_string(), sgcp::Resource::Maestro),
         ("CLOSE HAND".to_string(), "CLOSE_FIST".to_string(), sgcp::Resource::Maestro),
     ];
@@ -190,8 +193,8 @@ pub async fn monitor_events(manager_channel_map: ManagerChannelMap) {
     let send_channel_map = manager_channel_map.clone();
     loop {
         tokio::select! {
-            _ = EMG_idle.tick() => {
-                process_idle_task(&send_channel_map, sgcp::Resource::Emg, "IDLE", &EMG_response_mapping).await;
+            _ = emg_idle.tick() => {
+                process_idle_task(&send_channel_map, sgcp::Resource::Emg, "IDLE", &emg_response_mapping).await;
             }
             // _ = HAPTICS_idle.tick() => {
             //     // handle haptics idle task here
@@ -211,5 +214,8 @@ pub async fn init_tasks(manager_channel_map: ManagerChannelMap){
     // can also add maestro init, move all motors to home position, 0
     let init_map = manager_channel_map.clone();
 
-    dispatch_task(init_request, &init_map).await;
+    match dispatch_task(init_request, &init_map).await {
+        Ok(_) => info!("Initialization sucess"),
+        Err(err) => error!("Initialization failed: {:?}", err),
+    }
 }
