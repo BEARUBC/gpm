@@ -45,6 +45,8 @@ async fn main() {
         let mut exporter = telemetry::Exporter::new();
         exporter.init().await
     });
+ 
+    info!("{:?}", Config::global().command_dispatch_strategy);
 
     match Config::global().command_dispatch_strategy {
         CommandDispatchStrategy::Server => server::run_server_loop(manager_channel_map).await,
@@ -57,5 +59,7 @@ async fn main() {
             )
             .await;
         },
+        CommandDispatchStrategy::EmgSensor => server::monitor_events(manager_channel_map).await,
     }
+    
 }

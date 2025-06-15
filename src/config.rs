@@ -23,10 +23,19 @@ pub struct GpioMonitorConfig {
 }
 
 #[derive(Debug, Deserialize)]
+pub struct EmgConfig {
+    pub buffer_size: usize,
+    pub pause_duration_ms: u64,
+    pub sampling_speed_ms: u64,
+    pub cs_pin: u8,
+}
+
+#[derive(Debug, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum CommandDispatchStrategy {
     Server,
     GpioMonitor,
+    EmgSensor,
 }
 
 impl Default for CommandDispatchStrategy {
@@ -40,6 +49,7 @@ pub struct Config {
     pub server: Option<ServerConfig>,
     pub telemetry: Option<TelemetryConfig>,
     pub gpio_monitor: Option<GpioMonitorConfig>,
+    pub emg_sensor: Option<EmgConfig>,
     #[serde(default)]
     pub command_dispatch_strategy: CommandDispatchStrategy,
 }
