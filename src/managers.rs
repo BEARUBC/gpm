@@ -59,7 +59,7 @@ pub struct Manager<S: Resource> {
 
 impl<S: Resource> Manager<S> {
     pub fn new() -> Self {
-        let (tx, mut rx) = channel(MAX_MPSC_CHANNEL_BUFFER);
+        let (tx, rx) = channel(MAX_MPSC_CHANNEL_BUFFER);
         Manager::<S> {
             tx,
             rx,

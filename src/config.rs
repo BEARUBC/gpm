@@ -3,6 +3,8 @@ use serde::Deserialize;
 use std::fs;
 use std::sync::OnceLock;
 
+// TODO: Use dot notiation to better group configs (dispatchers.tcp, etc)
+
 #[derive(Debug, Deserialize)]
 pub struct ServerConfig {
     pub max_concurrent_connections: i32,
@@ -95,4 +97,3 @@ pub fn logger_init() {
     println!("{}", BYLINE);
     println!("{}", NEW_LINE);
 }
-
