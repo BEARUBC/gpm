@@ -100,4 +100,8 @@ impl Emg {
 
         buffer
     }
+
+    pub fn read_adc_channels(&mut self, channels: &[u8]) -> Result<Vec<u16>> {
+        self.adc.read_channels(channels)
+    }
 }
