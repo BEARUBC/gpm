@@ -1,12 +1,10 @@
 pub mod connection;
-mod macros;
 
+use super::dispatch_task;
 use crate::ManagerChannelMap;
 use crate::config::Config;
-use crate::managers::ManagerChannelData;
 use crate::retry;
 use crate::sgcp;
-use anyhow::Error;
 use anyhow::Result;
 use connection::Connection;
 use log::error;
@@ -15,8 +13,7 @@ use std::sync::Arc;
 use tokio::net::TcpListener;
 use tokio::net::TcpStream;
 use tokio::sync::Semaphore;
-use tokio::sync::oneshot;
-use tokio::time::{interval, Duration};
+use tokio::time::{Duration, interval};
 
 /// Starts the main TCP listener loop -- can handle at most MAX_CONCURRENT_CONNECTIONS connections
 /// at any given time
@@ -111,20 +108,6 @@ async fn handle_connection(stream: TcpStream, map: &ManagerChannelMap) -> Result
     Ok(())
 }
 
-/// Dispatches a request to the appropiate resource manager. Returns the response from the task.
-async fn dispatch_task(
-    request: sgcp::Request,
-    manager_channel_map: &ManagerChannelMap,
-) -> Result<String> {
-    macros::dispatch_task!(
-        request,
-        sgcp::Resource::Bms => manager_channel_map.get(sgcp::Resource::Bms.as_str_name()),
-        sgcp::Resource::Emg => manager_channel_map.get(sgcp::Resource::Emg.as_str_name()),
-        sgcp::Resource::Maestro => manager_channel_map.get(sgcp::Resource::Maestro.as_str_name())
-    )
-}
-
-
 /// Handles idle responses for a given resource and task code mapping
 async fn handle_idle_response(
     response: &str,
@@ -138,7 +121,7 @@ async fn handle_idle_response(
     {
         let request = sgcp::Request {
             resource: resource as i32,
-            task_code: task_code,
+            task_code,
             task_data: None,
         };
 
@@ -169,13 +152,12 @@ pub async fn process_idle_task(
         Err(err) => {
             error!("An error occurred when dispatching task; error={err}");
             log::error!("Failed to dispatch maintenance task: {:?}", err);
-        }
+        },
     }
 }
 
 // idle tasks
 pub async fn monitor_events(manager_channel_map: ManagerChannelMap) {
-
     // init
     init_tasks(manager_channel_map.clone()).await;
 
@@ -184,10 +166,18 @@ pub async fn monitor_events(manager_channel_map: ManagerChannelMap) {
         .as_ref()
         .expect("Expected EMG config to be defined");
 
-    let mut emg_idle = interval(Duration::from_millis(emg_config.sampling_speed_ms));  // 1000 ms for 1 Hz sampling rate for idle tasks, 2 ms for 500 Hz sampling rate
+    let mut emg_idle = interval(Duration::from_millis(emg_config.sampling_speed_ms)); // 1000 ms for 1 Hz sampling rate for idle tasks, 2 ms for 500 Hz sampling rate
     let emg_response_mapping = vec![
-        ("OPEN HAND".to_string(), "OPEN_FIST".to_string(), sgcp::Resource::Maestro),
-        ("CLOSE HAND".to_string(), "CLOSE_FIST".to_string(), sgcp::Resource::Maestro),
+        (
+            "OPEN HAND".to_string(),
+            "OPEN_FIST".to_string(),
+            sgcp::Resource::Maestro,
+        ),
+        (
+            "CLOSE HAND".to_string(),
+            "CLOSE_FIST".to_string(),
+            sgcp::Resource::Maestro,
+        ),
     ];
     // let mut HAPTICS_idle = interval(Duration::from_millis(1000)); // 1 Hz sampling rate // example for haptics
     let send_channel_map = manager_channel_map.clone();
@@ -203,7 +193,7 @@ pub async fn monitor_events(manager_channel_map: ManagerChannelMap) {
     }
 }
 
-pub async fn init_tasks(manager_channel_map: ManagerChannelMap){
+pub async fn init_tasks(manager_channel_map: ManagerChannelMap) {
     // run initialization tasks
     let init_request = sgcp::Request {
         resource: sgcp::Resource::Emg as i32,

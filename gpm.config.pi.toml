@@ -1,4 +1,4 @@
-command_dispatch_strategy = "emg_sensor"
+command_dispatch_strategy = "emg"
 
 [server]
 max_concurrent_connections = 1

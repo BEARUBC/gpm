@@ -33,14 +33,14 @@ pub struct EmgConfig {
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum CommandDispatchStrategy {
-    Server,
-    GpioMonitor,
-    EmgSensor,
+    Tcp,
+    Gpio,
+    Emg,
 }
 
 impl Default for CommandDispatchStrategy {
     fn default() -> Self {
-        CommandDispatchStrategy::Server
+        CommandDispatchStrategy::Tcp
     }
 }
 
@@ -95,3 +95,4 @@ pub fn logger_init() {
     println!("{}", BYLINE);
     println!("{}", NEW_LINE);
 }
+

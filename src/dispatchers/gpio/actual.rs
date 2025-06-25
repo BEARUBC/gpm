@@ -2,6 +2,7 @@
 // based on the pin state. This is an alternate strategy of dispatching commands than the
 // SGCP-based commands sent over TCP. We usually use this for testing the arm with a button to
 // control it.
+use crate::ManagerChannelMap;
 use crate::managers::ManagerChannelData;
 use tokio::sync::mpsc::Sender;
 
@@ -13,7 +14,11 @@ use std::time::Duration;
 use tokio::sync::oneshot;
 use tokio::time::sleep;
 
-pub async fn run_gpio_monitor_loop(maestro_tx: Sender<ManagerChannelData>) {
+pub async fn run_gpio_monitor_loop(manager_channel_map: ManagerChannelMap) {
+    let maestro_tx = manager_channel_map
+        .get(sgcp::Resource::Maestro.as_str_name())
+        .expect("Expected the Maestro manager to be initialized");
+
     let gpio_monitor_config = Config::global()
         .gpio_monitor
         .as_ref()

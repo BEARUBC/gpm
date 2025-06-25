@@ -1,9 +1,8 @@
 mod config;
-mod gpio_monitor;
+mod dispatchers;
 mod macros;
 mod managers;
 mod resources;
-mod server;
 mod telemetry;
 
 use config::CommandDispatchStrategy;
@@ -26,8 +25,6 @@ type ManagerChannelMap = HashMap<String, Sender<ManagerChannelData>>;
 // Import protobuf definitions for task communication
 import_sgcp!();
 
-/// Main entry point for the bionic arm system.
-/// Initializes all resource managers, telemetry, and starts the TCP server.
 #[tokio::main]
 async fn main() {
     #[cfg(feature = "dev")]
@@ -41,25 +38,25 @@ async fn main() {
         sgcp::Resource::Maestro => Manager::<Maestro>::new()
     };
 
-    // Spawn the telemetry exporter as an independent async task.
     tokio::spawn(async {
         let mut exporter = telemetry::Exporter::new();
         exporter.init().await
     });
 
-    info!("{:?}", Config::global().command_dispatch_strategy);
+    info!(
+        "Using {:?} as the command dispatch strategy",
+        Config::global().command_dispatch_strategy
+    );
 
     match Config::global().command_dispatch_strategy {
-        CommandDispatchStrategy::Server => server::run_server_loop(manager_channel_map).await,
-        CommandDispatchStrategy::GpioMonitor => {
-            gpio_monitor::run_gpio_monitor_loop(
-                manager_channel_map
-                    .get(sgcp::Resource::Maestro.as_str_name())
-                    .expect("Expected the Maestro manager to be initialized")
-                    .clone(),
-            )
-            .await;
+        CommandDispatchStrategy::Tcp => {
+            dispatchers::tcp::run_server_loop(manager_channel_map).await
         },
-        CommandDispatchStrategy::EmgSensor => server::monitor_events(manager_channel_map).await,
+        CommandDispatchStrategy::Gpio => {
+            dispatchers::gpio::run_gpio_monitor_loop(manager_channel_map).await
+        },
+        CommandDispatchStrategy::Emg => {
+            dispatchers::emg::run_emg_monitor_loop(manager_channel_map).await
+        },
     }
 }

@@ -7,4 +7,3 @@ mod mock;
 pub use actual::run_gpio_monitor_loop;
 #[cfg(not(feature = "pi"))]
 pub use mock::run_gpio_monitor_loop;
-

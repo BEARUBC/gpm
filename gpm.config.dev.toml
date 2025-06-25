@@ -1,4 +1,4 @@
-command_dispatch_strategy = "server"
+command_dispatch_strategy = "tcp"
 
 [server]
 max_concurrent_connections = 1
