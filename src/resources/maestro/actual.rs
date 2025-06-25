@@ -25,14 +25,12 @@ pub struct Maestro {
 
 impl Resource for Maestro {
     fn init() -> Self {
-        {
-            let mut controller: raestro::maestro::Maestro = Builder::default()
-                .baudrate(Baudrate::Baudrate11520)
-                .block_duration(Duration::from_millis(100))
-                .try_into()
-                .expect("Could not initialize Raestro");
-            Maestro { controller }
-        }
+        let mut controller: raestro::maestro::Maestro = Builder::default()
+            .baudrate(Baudrate::Baudrate11520)
+            .block_duration(Duration::from_millis(100))
+            .try_into()
+            .expect("Could not initialize Raestro");
+        Maestro { controller }
     }
 
     fn name() -> String {
