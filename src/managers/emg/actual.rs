@@ -1,6 +1,4 @@
 // All tasks operating on the EMG system live in this file
-pub mod adc;
-
 use crate::config::Config;
 use crate::managers::Manager;
 use crate::managers::ManagerChannelData;
@@ -33,14 +31,14 @@ impl ResourceManager for Manager<Emg> {
                 Err(Error::msg("Encountered an undefined task type"))
             },
             Task::Idle => {
-                let adc_values = adc::read_adc_channels(
+                let adc_values = Emg::read_adc_channels(
                     &[0, 1],
                     &mut self.resource.cs_pin,
                     &mut self.resource.spi,
                 )?;
                 info!("EMG ADC Channel 0,1 value: {:?}", adc_values);
 
-                let grip_state = adc::process_data(
+                let grip_state = Emg::process_data(
                     adc_values,
                     self.resource.inner_threshold,
                     self.resource.outer_threshold,
