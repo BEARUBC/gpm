@@ -5,16 +5,12 @@ use crate::managers::TASK_SUCCESS;
 use crate::managers::macros::parse_channel_data;
 use crate::not_on_pi;
 use crate::request::TaskData::MaestroData;
-use crate::resources::Resource;
 use crate::resources::maestro::Maestro;
-use crate::sgcp;
 use crate::sgcp::maestro::Task as MaestroTask;
-use crate::sgcp::maestro::*;
 use anyhow::Error;
 use anyhow::Result;
 use anyhow::anyhow;
 use log::*;
-use std::time::Duration;
 
 impl ResourceManager for Manager<Maestro> {
     type ResourceType = Maestro;

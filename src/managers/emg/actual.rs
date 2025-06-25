@@ -1,4 +1,3 @@
-// All tasks operating on the EMG system live in this file
 use crate::config::Config;
 use crate::managers::Manager;
 use crate::managers::ManagerChannelData;

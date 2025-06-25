@@ -5,9 +5,7 @@ use crate::managers::ResourceManager;
 use crate::managers::TASK_SUCCESS;
 use crate::managers::macros::parse_channel_data;
 use crate::request::TaskData::BmsData;
-use crate::resources::Resource;
 use crate::resources::bms::Bms;
-use crate::sgcp;
 use crate::sgcp::bms::*;
 use crate::todo;
 use anyhow::Error;
@@ -30,4 +28,3 @@ impl ResourceManager for Manager<Bms> {
             .map_err(|e| anyhow!("Send Failed: {e}"))?)
     }
 }
-
