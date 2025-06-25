@@ -4,6 +4,7 @@ mod macros;
 mod managers;
 mod resources;
 mod telemetry;
+mod utils;
 
 use config::CommandDispatchStrategy;
 use config::Config;

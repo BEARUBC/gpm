@@ -1,4 +1,5 @@
 pub mod bms;
+pub mod common;
 pub mod emg;
 pub mod maestro;
 
