@@ -14,7 +14,7 @@ use std::time::Duration;
 use tokio::sync::oneshot;
 use tokio::time::sleep;
 
-pub async fn run_gpio_monitor_loop(manager_channel_map: ManagerChannelMap) {
+pub async fn run_gpio_dispatcher_loop(manager_channel_map: ManagerChannelMap) {
     let maestro_tx = manager_channel_map
         .get(sgcp::Resource::Maestro.as_str_name())
         .expect("Expected the Maestro manager to be initialized");

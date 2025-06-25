@@ -4,6 +4,6 @@ mod actual;
 mod mock;
 
 #[cfg(feature = "pi")]
-pub use actual::run_emg_monitor_loop;
+pub use actual::run_emg_dispatcher_loop;
 #[cfg(not(feature = "pi"))]
-pub use mock::run_emg_monitor_loop;
+pub use mock::run_emg_dispatcher_loop;

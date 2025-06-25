@@ -3,7 +3,7 @@ use crate::ManagerChannelMap;
 // TODO: refactor
 
 // idle tasks
-pub async fn run_emg_monitor_loop(manager_channel_map: ManagerChannelMap) {
+pub async fn run_emg_dispatcher_loop(manager_channel_map: ManagerChannelMap) {
     // init
     init_tasks(manager_channel_map.clone()).await;
 
@@ -88,6 +88,7 @@ async fn process_idle_task(
 }
 
 async fn init_tasks(manager_channel_map: ManagerChannelMap) {
+    // TODO: Do we need this? Resources already have an init function
     // run initialization tasks
     let init_request = sgcp::Request {
         resource: sgcp::Resource::Emg as i32,

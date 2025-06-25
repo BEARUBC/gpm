@@ -50,13 +50,13 @@ async fn main() {
 
     match Config::global().command_dispatch_strategy {
         CommandDispatchStrategy::Tcp => {
-            dispatchers::tcp::run_server_loop(manager_channel_map).await
+            dispatchers::tcp::run_tcp_dispatcher_loop(manager_channel_map).await
         },
         CommandDispatchStrategy::Gpio => {
-            dispatchers::gpio::run_gpio_monitor_loop(manager_channel_map).await
+            dispatchers::gpio::run_gpio_dispatcher_loop(manager_channel_map).await
         },
         CommandDispatchStrategy::Emg => {
-            dispatchers::emg::run_emg_monitor_loop(manager_channel_map).await
+            dispatchers::emg::run_emg_dispatcher_loop(manager_channel_map).await
         },
     }
 }
