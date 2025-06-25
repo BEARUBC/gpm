@@ -2,6 +2,7 @@ mod config;
 mod gpio_monitor;
 mod macros;
 mod managers;
+mod resources;
 mod server;
 mod telemetry;
 
@@ -12,9 +13,9 @@ use managers::HasMpscChannel;
 use managers::Manager;
 use managers::ManagerChannelData;
 use managers::ResourceManager;
-use managers::resources::bms::Bms;
-use managers::resources::emg::Emg;
-use managers::resources::maestro::Maestro;
+use resources::bms::Bms;
+use resources::emg::Emg;
+use resources::maestro::Maestro;
 use std::collections::HashMap;
 use tokio::sync::mpsc::Sender;
 
@@ -45,7 +46,7 @@ async fn main() {
         let mut exporter = telemetry::Exporter::new();
         exporter.init().await
     });
- 
+
     info!("{:?}", Config::global().command_dispatch_strategy);
 
     match Config::global().command_dispatch_strategy {
@@ -61,5 +62,4 @@ async fn main() {
         },
         CommandDispatchStrategy::EmgSensor => server::monitor_events(manager_channel_map).await,
     }
-    
 }

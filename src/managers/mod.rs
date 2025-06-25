@@ -1,7 +1,10 @@
+pub mod bms;
+pub mod emg;
 pub mod macros;
-pub mod resources;
+pub mod maestro;
 
 use crate::request::TaskData;
+use crate::resources::Resource;
 use anyhow::Result;
 use log::error;
 use log::info;
@@ -40,11 +43,6 @@ pub trait ResourceManager: HasMpscChannel {
             };
         }
     }
-}
-
-pub trait Resource {
-    fn init() -> Self;
-    fn name() -> String;
 }
 
 pub trait HasMpscChannel {
