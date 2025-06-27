@@ -17,7 +17,7 @@ impl Dispatcher for EmgDispatcher {
 
         let emg_config = Config::global()
             .dispatcher
-            .emg_sensor
+            .emg
             .as_ref()
             .expect("Expected EMG config to be defined");
 
