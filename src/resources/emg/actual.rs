@@ -24,6 +24,7 @@ pub struct Emg {
 impl Resource for Emg {
     fn init() -> Self {
         let emg_config = Config::global()
+            .dispatcher
             .emg_sensor
             .as_ref()
             .expect("Expected emg config to be defined");

@@ -20,10 +20,7 @@ impl Dispatcher for TcpDispatcher {
     /// Starts the main TCP listener loop -- can handle at most MAX_CONCURRENT_CONNECTIONS connections
     /// at any given time
     async fn run(manager_channel_map: ManagerChannelMap) {
-        let server_config = Config::global()
-            .server
-            .as_ref()
-            .expect("Expected server config to be defined");
+        let server_config = &Config::global().dispatcher.tcp;
 
         let listener = TcpListener::bind(server_config.address.clone())
             .await

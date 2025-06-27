@@ -1,6 +1,6 @@
 command_dispatch_strategy = "tcp"
 
-[server]
+[dispatcher.tcp]
 max_concurrent_connections = 1
 address = "127.0.0.1:4760"
 read_buffer_capacity_in_bytes = 1024

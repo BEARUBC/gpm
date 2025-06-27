@@ -22,6 +22,7 @@ impl Dispatcher for GpioDispatcher {
             .expect("Expected the Maestro manager to be initialized");
 
         let gpio_monitor_config = Config::global()
+            .dispatcher
             .gpio_monitor
             .as_ref()
             .expect("Expected GPIO monitor config to be defined");

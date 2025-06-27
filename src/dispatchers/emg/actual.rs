@@ -16,6 +16,7 @@ impl Dispatcher for EmgDispatcher {
         init_tasks(manager_channel_map.clone()).await;
 
         let emg_config = Config::global()
+            .dispatcher
             .emg_sensor
             .as_ref()
             .expect("Expected EMG config to be defined");
