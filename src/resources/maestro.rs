@@ -1,9 +1,9 @@
 #[cfg(feature = "pi")]
-mod actual;
-#[cfg(not(feature = "pi"))]
-mod mock;
+#[path = "maestro/actual.rs"]
+mod maestro_impl;
 
-#[cfg(feature = "pi")]
-pub use actual::Maestro;
 #[cfg(not(feature = "pi"))]
-pub use mock::Maestro;
+#[path = "maestro/mock.rs"]
+mod maestro_impl;
+
+pub use maestro_impl::Maestro;

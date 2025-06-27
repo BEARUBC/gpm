@@ -1,9 +1,9 @@
 #[cfg(feature = "pi")]
-mod actual;
-#[cfg(not(feature = "pi"))]
-mod mock;
+#[path = "emg/actual.rs"]
+mod emg_impl;
 
-#[cfg(feature = "pi")]
-pub use actual::Emg;
 #[cfg(not(feature = "pi"))]
-pub use mock::Emg;
+#[path = "emg/mock.rs"]
+mod emg_impl;
+
+pub use emg_impl::Emg;
