@@ -8,6 +8,10 @@ mod utils;
 
 use config::CommandDispatchStrategy;
 use config::Config;
+use dispatchers::Dispatcher;
+use dispatchers::emg::EmgDispatcher;
+use dispatchers::gpio::GpioDispatcher;
+use dispatchers::tcp::TcpDispatcher;
 use log::*;
 use managers::HasMpscChannel;
 use managers::Manager;
@@ -50,14 +54,8 @@ async fn main() {
     );
 
     match Config::global().command_dispatch_strategy {
-        CommandDispatchStrategy::Tcp => {
-            dispatchers::tcp::run_tcp_dispatcher_loop(manager_channel_map).await
-        },
-        CommandDispatchStrategy::Gpio => {
-            dispatchers::gpio::run_gpio_dispatcher_loop(manager_channel_map).await
-        },
-        CommandDispatchStrategy::Emg => {
-            dispatchers::emg::run_emg_dispatcher_loop(manager_channel_map).await
-        },
+        CommandDispatchStrategy::Tcp => TcpDispatcher::run(manager_channel_map).await,
+        CommandDispatchStrategy::Gpio => GpioDispatcher::run(manager_channel_map).await,
+        CommandDispatchStrategy::Emg => EmgDispatcher::run(manager_channel_map).await,
     }
 }

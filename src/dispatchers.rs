@@ -11,7 +11,9 @@ use anyhow::Result;
 use log::info;
 use tokio::sync::oneshot;
 
-// TODO: introduce a common trait for all dispatchers
+pub trait Dispatcher {
+    async fn run(manager_channel_map: ManagerChannelMap);
+}
 
 /// Dispatches a request to the appropiate resource manager. Returns the response from the task.
 pub async fn dispatch_task(

@@ -1,5 +1,6 @@
 pub mod connection;
 
+use super::Dispatcher;
 use super::dispatch_task;
 use crate::ManagerChannelMap;
 use crate::config::Config;
@@ -13,54 +14,58 @@ use tokio::net::TcpListener;
 use tokio::net::TcpStream;
 use tokio::sync::Semaphore;
 
-/// Starts the main TCP listener loop -- can handle at most MAX_CONCURRENT_CONNECTIONS connections
-/// at any given time
-pub async fn run_tcp_dispatcher_loop(manager_channel_map: ManagerChannelMap) {
-    let server_config = Config::global()
-        .server
-        .as_ref()
-        .expect("Expected server config to be defined");
+pub struct TcpDispatcher;
 
-    let listener = TcpListener::bind(server_config.address.clone())
-        .await
-        .expect(&format!(
-            "Couldn't bind to address {}",
-            &server_config.address
+impl Dispatcher for TcpDispatcher {
+    /// Starts the main TCP listener loop -- can handle at most MAX_CONCURRENT_CONNECTIONS connections
+    /// at any given time
+    async fn run(manager_channel_map: ManagerChannelMap) {
+        let server_config = Config::global()
+            .server
+            .as_ref()
+            .expect("Expected server config to be defined");
+
+        let listener = TcpListener::bind(server_config.address.clone())
+            .await
+            .expect(&format!(
+                "Couldn't bind to address {}",
+                &server_config.address
+            ));
+
+        let sem = Arc::new(Semaphore::new(
+            server_config.max_concurrent_connections as usize,
         ));
+        info!("GPM server listening on {:?}", server_config.address);
 
-    let sem = Arc::new(Semaphore::new(
-        server_config.max_concurrent_connections as usize,
-    ));
-    info!("GPM server listening on {:?}", server_config.address);
+        loop {
+            let sem_clone = Arc::clone(&sem);
+            let (stream, client_addr) = match listener.accept().await {
+                Ok(conn) => conn,
+                Err(err) => {
+                    error!(
+                        "Encountered an error when accepting new connection; error={:?}",
+                        err
+                    );
+                    continue;
+                },
+            };
 
-    loop {
-        let sem_clone = Arc::clone(&sem);
-        let (stream, client_addr) = match listener.accept().await {
-            Ok(conn) => conn,
-            Err(err) => {
-                error!(
-                    "Encountered an error when accepting new connection; error={:?}",
-                    err
-                );
-                continue;
-            },
-        };
-
-        // Stores a mapping between the manager tasks and the Sender channel needed to communicate
-        // with them
-        let send_channel_map = manager_channel_map.clone();
-        tokio::spawn(async move {
-            // Bounds number of concurrent connections
-            if let Ok(_) = retry!(sem_clone.try_acquire()) {
-                info!("Accpeted new remote connection from host={:?}", client_addr);
-                handle_connection(stream, &send_channel_map).await.unwrap();
-            } else {
-                error!(
-                    "Rejected new remote connection from host={:?}, currently serving maximum_clients={:?}",
-                    client_addr, server_config.max_concurrent_connections
-                );
-            }
-        });
+            // Stores a mapping between the manager tasks and the Sender channel needed to communicate
+            // with them
+            let send_channel_map = manager_channel_map.clone();
+            tokio::spawn(async move {
+                // Bounds number of concurrent connections
+                if let Ok(_) = retry!(sem_clone.try_acquire()) {
+                    info!("Accpeted new remote connection from host={:?}", client_addr);
+                    handle_connection(stream, &send_channel_map).await.unwrap();
+                } else {
+                    error!(
+                        "Rejected new remote connection from host={:?}, currently serving maximum_clients={:?}",
+                        client_addr, server_config.max_concurrent_connections
+                    );
+                }
+            });
+        }
     }
 }
 

@@ -1,5 +1,9 @@
-use crate::ManagerChannelMap;
+use crate::{ManagerChannelMap, dispatchers::Dispatcher};
 
-pub async fn run_emg_dispatcher_loop(_manager_channel_map: ManagerChannelMap) {
-    panic!("Cannot run EMG monitor loop outside the Pi");
+use super::EmgDispatcher;
+
+impl Dispatcher for EmgDispatcher {
+    async fn run(_manager_channel_map: ManagerChannelMap) {
+        panic!("Cannot run EMG monitor loop outside the Pi");
+    }
 }

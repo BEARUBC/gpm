@@ -1,7 +1,8 @@
 use crate::ManagerChannelMap;
 
+use super::EmgDispatcher;
 use crate::config::Config;
-use crate::dispatchers::dispatch_task;
+use crate::dispatchers::{Dispatcher, dispatch_task};
 use crate::sgcp;
 use log::*;
 use std::time::Duration;
@@ -9,39 +10,40 @@ use tokio::time::interval;
 
 // TODO: refactor
 
-// idle tasks
-pub async fn run_emg_dispatcher_loop(manager_channel_map: ManagerChannelMap) {
-    // init
-    init_tasks(manager_channel_map.clone()).await;
+impl Dispatcher for EmgDispatcher {
+    async fn run(manager_channel_map: ManagerChannelMap) {
+        // init
+        init_tasks(manager_channel_map.clone()).await;
 
-    let emg_config = Config::global()
-        .emg_sensor
-        .as_ref()
-        .expect("Expected EMG config to be defined");
+        let emg_config = Config::global()
+            .emg_sensor
+            .as_ref()
+            .expect("Expected EMG config to be defined");
 
-    let mut emg_idle = interval(Duration::from_millis(emg_config.sampling_speed_ms)); // 1000 ms for 1 Hz sampling rate for idle tasks, 2 ms for 500 Hz sampling rate
-    let emg_response_mapping = vec![
-        (
-            "OPEN HAND".to_string(),
-            "OPEN_FIST".to_string(),
-            sgcp::Resource::Maestro,
-        ),
-        (
-            "CLOSE HAND".to_string(),
-            "CLOSE_FIST".to_string(),
-            sgcp::Resource::Maestro,
-        ),
-    ];
-    // let mut HAPTICS_idle = interval(Duration::from_millis(1000)); // 1 Hz sampling rate // example for haptics
-    let send_channel_map = manager_channel_map.clone();
-    loop {
-        tokio::select! {
-            _ = emg_idle.tick() => {
-                process_idle_task(&send_channel_map, sgcp::Resource::Emg, "IDLE", &emg_response_mapping).await;
+        let mut emg_idle = interval(Duration::from_millis(emg_config.sampling_speed_ms)); // 1000 ms for 1 Hz sampling rate for idle tasks, 2 ms for 500 Hz sampling rate
+        let emg_response_mapping = vec![
+            (
+                "OPEN HAND".to_string(),
+                "OPEN_FIST".to_string(),
+                sgcp::Resource::Maestro,
+            ),
+            (
+                "CLOSE HAND".to_string(),
+                "CLOSE_FIST".to_string(),
+                sgcp::Resource::Maestro,
+            ),
+        ];
+        // let mut HAPTICS_idle = interval(Duration::from_millis(1000)); // 1 Hz sampling rate // example for haptics
+        let send_channel_map = manager_channel_map.clone();
+        loop {
+            tokio::select! {
+                _ = emg_idle.tick() => {
+                    process_idle_task(&send_channel_map, sgcp::Resource::Emg, "IDLE", &emg_response_mapping).await;
+                }
+                // _ = HAPTICS_idle.tick() => {
+                //     // handle haptics idle task here
+                // }
             }
-            // _ = HAPTICS_idle.tick() => {
-            //     // handle haptics idle task here
-            // }
         }
     }
 }
