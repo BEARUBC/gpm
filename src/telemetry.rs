@@ -67,7 +67,7 @@ impl Exporter {
             telemetry_config.address
         );
         loop {
-            let (stream, client_addr) = listener.accept().await.unwrap();
+            let (stream, _client_addr) = listener.accept().await.unwrap();
             let io = TokioIo::new(stream);
             let registry = self.registry.clone();
             let cpu_usage = self.cpu_usage.clone();
@@ -76,7 +76,7 @@ impl Exporter {
                 if let Err(err) = http1::Builder::new()
                     .serve_connection(
                         io,
-                        service_fn(|req| async {
+                        service_fn(|_req| async {
                             info!("Responding to metrics request");
                             Exporter::get_cpu_usage(&cpu_usage);
                             Exporter::get_memory_usage(&memory_usage);

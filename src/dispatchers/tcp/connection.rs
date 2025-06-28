@@ -24,10 +24,7 @@ pub struct Connection {
 
 impl Connection {
     pub fn new(stream: TcpStream) -> Connection {
-        let server_config = Config::global()
-            .server
-            .as_ref()
-            .expect("Global config must include server config");
+        let server_config = &Config::global().dispatcher.tcp;
         Connection {
             stream,
             buffer: BytesMut::with_capacity(server_config.read_buffer_capacity_in_bytes as usize),
@@ -97,10 +94,7 @@ impl Connection {
             },
             _ => (),
         }
-        let server_config = Config::global()
-            .server
-            .as_ref()
-            .expect("Expected server config to be defined");
+        let server_config = &Config::global().dispatcher.tcp;
         // Drop all read data
         self.buffer
             .advance(len + server_config.frame_prefix_length_in_bytes as usize);
