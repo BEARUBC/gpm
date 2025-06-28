@@ -27,6 +27,8 @@ rppal = { version = "0.19.0", optional = true }
 console-subscriber = { version = "0.4.0", optional = true }
 toml = "0.8.22"
 spidev = { version = "0.7.0", optional = true }
+ratatui = "0.29.0"
+crossterm = "0.29.0"
 
 [build-dependencies]
 prost-build = { version = "0.12" }
