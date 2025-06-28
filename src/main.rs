@@ -1,6 +1,5 @@
 mod config;
 mod dispatchers;
-mod macros;
 mod managers;
 mod resources;
 mod telemetry;
@@ -11,6 +10,7 @@ use dispatchers::Dispatcher;
 use dispatchers::emg::EmgDispatcher;
 use dispatchers::gpio::GpioDispatcher;
 use dispatchers::tcp::TcpDispatcher;
+use gpm::import_sgcp;
 use log::*;
 use managers::HasMpscChannel;
 use managers::Manager;

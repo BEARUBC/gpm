@@ -7,10 +7,10 @@ use crate::managers::macros::parse_channel_data;
 use crate::request::TaskData::BmsData;
 use crate::resources::bms::Bms;
 use crate::sgcp::bms::*;
-use crate::todo;
 use anyhow::Error;
 use anyhow::Result;
 use anyhow::anyhow;
+use gpm::todo;
 use log::*;
 
 impl ResourceManager for Manager<Bms> {
