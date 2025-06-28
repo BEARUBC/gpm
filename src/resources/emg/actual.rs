@@ -5,7 +5,7 @@ use anyhow::{Error, Result};
 use log::*;
 
 use crate::resources::Resource;
-use crate::{sgcp, utils};
+use crate::sgcp;
 use rppal::gpio::OutputPin;
 use rppal::spi::Spi;
 use std::{io, thread, time::Duration};
@@ -71,12 +71,12 @@ impl Emg {
 
         let outer_buffer = self.read_samples(1, "outer");
 
-        let avg_inner = utils::average(inner_buffer.as_ref()).unwrap_or_else(|e| {
+        let avg_inner = Adc::average_values(inner_buffer.as_ref()).unwrap_or_else(|e| {
             info!("Error calculating average for inner buffer: {}", e);
             0
         });
 
-        let avg_outer = utils::average(outer_buffer.as_ref()).unwrap_or_else(|e| {
+        let avg_outer = Adc::average_values(outer_buffer.as_ref()).unwrap_or_else(|e| {
             info!("Error calculating average for outer buffer: {}", e);
             0
         });
