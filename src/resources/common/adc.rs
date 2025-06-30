@@ -1,9 +1,6 @@
 // MCP3008 Client
 use anyhow::{Context, Error, Result};
 
-use rppal::gpio::OutputPin;
-use rppal::spi::Spi;
-
 use rppal::gpio::{Gpio, OutputPin};
 use rppal::spi::{Bus, Mode, SlaveSelect, Spi};
 

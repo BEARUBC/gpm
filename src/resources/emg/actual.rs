@@ -6,8 +6,6 @@ use log::*;
 
 use crate::resources::Resource;
 use crate::sgcp;
-use rppal::gpio::OutputPin;
-use rppal::spi::Spi;
 use std::{io, thread, time::Duration};
 
 use rppal::gpio::{Gpio, OutputPin};
