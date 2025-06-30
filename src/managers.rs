@@ -1,7 +1,10 @@
+pub mod bms;
+pub mod emg;
 pub mod macros;
-pub mod resources;
+pub mod maestro;
 
 use crate::request::TaskData;
+use crate::resources::Resource;
 use anyhow::Result;
 use log::error;
 use log::info;
@@ -42,11 +45,6 @@ pub trait ResourceManager: HasMpscChannel {
     }
 }
 
-pub trait Resource {
-    fn init() -> Self;
-    fn name() -> String;
-}
-
 pub trait HasMpscChannel {
     fn tx(&self) -> Sender<ManagerChannelData>;
     fn rx(&mut self) -> &mut Receiver<ManagerChannelData>;
@@ -61,7 +59,7 @@ pub struct Manager<S: Resource> {
 
 impl<S: Resource> Manager<S> {
     pub fn new() -> Self {
-        let (tx, mut rx) = channel(MAX_MPSC_CHANNEL_BUFFER);
+        let (tx, rx) = channel(MAX_MPSC_CHANNEL_BUFFER);
         Manager::<S> {
             tx,
             rx,

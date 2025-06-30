@@ -1,20 +1,24 @@
 mod config;
-mod gpio_monitor;
+mod dispatchers;
 mod macros;
 mod managers;
-mod server;
+mod resources;
 mod telemetry;
 
 use config::CommandDispatchStrategy;
 use config::Config;
+use dispatchers::Dispatcher;
+use dispatchers::emg::EmgDispatcher;
+use dispatchers::gpio::GpioDispatcher;
+use dispatchers::tcp::TcpDispatcher;
 use log::*;
 use managers::HasMpscChannel;
 use managers::Manager;
 use managers::ManagerChannelData;
 use managers::ResourceManager;
-use managers::resources::bms::Bms;
-use managers::resources::emg::Emg;
-use managers::resources::maestro::Maestro;
+use resources::bms::Bms;
+use resources::emg::Emg;
+use resources::maestro::Maestro;
 use std::collections::HashMap;
 use tokio::sync::mpsc::Sender;
 
@@ -25,8 +29,6 @@ type ManagerChannelMap = HashMap<String, Sender<ManagerChannelData>>;
 // Import protobuf definitions for task communication
 import_sgcp!();
 
-/// Main entry point for the bionic arm system.
-/// Initializes all resource managers, telemetry, and starts the TCP server.
 #[tokio::main]
 async fn main() {
     #[cfg(feature = "dev")]
@@ -40,26 +42,19 @@ async fn main() {
         sgcp::Resource::Maestro => Manager::<Maestro>::new()
     };
 
-    // Spawn the telemetry exporter as an independent async task.
     tokio::spawn(async {
         let mut exporter = telemetry::Exporter::new();
         exporter.init().await
     });
- 
-    info!("{:?}", Config::global().command_dispatch_strategy);
+
+    info!(
+        "Using {:?} as the command dispatch strategy",
+        Config::global().command_dispatch_strategy
+    );
 
     match Config::global().command_dispatch_strategy {
-        CommandDispatchStrategy::Server => server::run_server_loop(manager_channel_map).await,
-        CommandDispatchStrategy::GpioMonitor => {
-            gpio_monitor::run_gpio_monitor_loop(
-                manager_channel_map
-                    .get(sgcp::Resource::Maestro.as_str_name())
-                    .expect("Expected the Maestro manager to be initialized")
-                    .clone(),
-            )
-            .await;
-        },
-        CommandDispatchStrategy::EmgSensor => server::monitor_events(manager_channel_map).await,
+        CommandDispatchStrategy::Tcp => TcpDispatcher::run(manager_channel_map).await,
+        CommandDispatchStrategy::Gpio => GpioDispatcher::run(manager_channel_map).await,
+        CommandDispatchStrategy::Emg => EmgDispatcher::run(manager_channel_map).await,
     }
-    
 }

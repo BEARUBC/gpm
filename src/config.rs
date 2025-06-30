@@ -4,17 +4,32 @@ use std::fs;
 use std::sync::OnceLock;
 
 #[derive(Debug, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum CommandDispatchStrategy {
+    Tcp,
+    Gpio,
+    Emg,
+}
+
+impl Default for CommandDispatchStrategy {
+    fn default() -> Self {
+        CommandDispatchStrategy::Tcp
+    }
+}
+
+#[derive(Debug, Deserialize)]
+pub struct Dispatcher {
+    pub tcp: ServerConfig,
+    pub emg: Option<EmgConfig>,
+    pub gpio_monitor: Option<GpioMonitorConfig>,
+}
+
+#[derive(Debug, Deserialize)]
 pub struct ServerConfig {
     pub max_concurrent_connections: i32,
     pub address: String,
     pub read_buffer_capacity_in_bytes: i32,
     pub frame_prefix_length_in_bytes: i32,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct TelemetryConfig {
-    pub address: String,
-    pub tick_interval_in_seconds: i32,
 }
 
 #[derive(Debug, Deserialize)]
@@ -31,27 +46,17 @@ pub struct EmgConfig {
 }
 
 #[derive(Debug, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum CommandDispatchStrategy {
-    Server,
-    GpioMonitor,
-    EmgSensor,
-}
-
-impl Default for CommandDispatchStrategy {
-    fn default() -> Self {
-        CommandDispatchStrategy::Server
-    }
+pub struct TelemetryConfig {
+    pub address: String,
+    pub tick_interval_in_seconds: i32,
 }
 
 #[derive(Debug, Deserialize)]
 pub struct Config {
-    pub server: Option<ServerConfig>,
-    pub telemetry: Option<TelemetryConfig>,
-    pub gpio_monitor: Option<GpioMonitorConfig>,
-    pub emg_sensor: Option<EmgConfig>,
     #[serde(default)]
     pub command_dispatch_strategy: CommandDispatchStrategy,
+    pub dispatcher: Dispatcher,
+    pub telemetry: Option<TelemetryConfig>,
 }
 
 static CONFIG: OnceLock<Config> = OnceLock::new();

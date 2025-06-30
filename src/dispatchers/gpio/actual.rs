@@ -2,22 +2,27 @@
 // based on the pin state. This is an alternate strategy of dispatching commands than the
 // SGCP-based commands sent over TCP. We usually use this for testing the arm with a button to
 // control it.
+use crate::ManagerChannelMap;
 use crate::managers::ManagerChannelData;
-use tokio::sync::mpsc::Sender;
 
+use super::GpioDispatcher;
 use crate::config::Config;
+use crate::dispatchers::Dispatcher;
 use crate::sgcp;
 use log::*;
-#[cfg(feature = "pi")]
 use rppal::gpio::{Gpio, InputPin};
 use std::time::Duration;
 use tokio::sync::oneshot;
 use tokio::time::sleep;
 
-pub async fn run_gpio_monitor_loop(maestro_tx: Sender<ManagerChannelData>) {
-    #[cfg(feature = "pi")]
-    {
+impl Dispatcher for GpioDispatcher {
+    async fn run(manager_channel_map: ManagerChannelMap) {
+        let maestro_tx = manager_channel_map
+            .get(sgcp::Resource::Maestro.as_str_name())
+            .expect("Expected the Maestro manager to be initialized");
+
         let gpio_monitor_config = Config::global()
+            .dispatcher
             .gpio_monitor
             .as_ref()
             .expect("Expected GPIO monitor config to be defined");
@@ -61,5 +66,4 @@ pub async fn run_gpio_monitor_loop(maestro_tx: Sender<ManagerChannelData>) {
             sleep(Duration::from_millis(100)).await;
         }
     }
-    panic!("Cannot use GPIO monitor outside the Pi");
 }
