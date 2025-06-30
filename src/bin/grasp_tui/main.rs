@@ -1,11 +1,14 @@
 use anyhow::Result;
 use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
+use gpm::import_sgcp;
 use ratatui::{
     DefaultTerminal, Frame,
     style::Stylize,
     text::Line,
     widgets::{Block, Paragraph},
 };
+
+import_sgcp!();
 
 fn main() -> Result<()> {
     let terminal = ratatui::init();
