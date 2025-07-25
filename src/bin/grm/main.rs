@@ -1,203 +1,172 @@
-use anyhow::Result;
-use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
+mod widgets;
+
+use crossterm::{
+    event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode},
+    execute,
+    terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
+};
 use gpm::import_sgcp;
 use ratatui::{
-    DefaultTerminal, Frame,
-    buffer::Buffer,
-    layout::{Alignment, Constraint, Direction, Layout, Rect},
-    style::{Color, Stylize, palette::tailwind},
-    symbols,
-    text::Line,
-    widgets::{Block, Padding, Paragraph, Tabs, Widget},
+    Frame, Terminal,
+    backend::{Backend, CrosstermBackend},
+    layout::{Constraint, Layout},
+    widgets::{Block, BorderType, Borders, List, ListItem, ListState},
+};
+use std::{
+    error::Error,
+    io::{self},
 };
 
 import_sgcp!();
 
-const ALL_SGCP_RESOURCES: &[sgcp::Resource] = &[
-    sgcp::Resource::UndefinedComponent,
-    sgcp::Resource::Bms,
-    sgcp::Resource::Emg,
-    sgcp::Resource::Maestro,
-];
-
-fn main() -> Result<()> {
-    let terminal = ratatui::init();
-    let result = App::new().run(terminal);
-    ratatui::restore();
-    result
+macro_rules! enumerate_enum {
+    ($enum:path) => {{
+        std::iter::successors(Some(1), |&i| Some(i + 1))
+            .map_while(|i| <$enum as std::convert::TryFrom<i32>>::try_from(i).ok())
+            .collect::<Vec<$enum>>()
+    }};
 }
 
-impl sgcp::Resource {
-    fn previous(self) -> Self {
-        let current_index: i32 = self as i32;
-        Self::try_from(current_index.saturating_sub(1)).unwrap_or(self)
+struct StatefulList<T> {
+    state: ListState,
+    items: Vec<T>,
+}
+
+impl<T> StatefulList<T> {
+    fn with_items(items: Vec<T>) -> Self {
+        let state = if items.is_empty() {
+            ListState::default()
+        } else {
+            ListState::default().with_selected(Some(0))
+        };
+
+        Self { state, items }
     }
 
-    fn next(self) -> Self {
-        let current_index: i32 = self as i32;
-        Self::try_from(current_index.saturating_add(1)).unwrap_or(self)
+    fn next(&mut self) {
+        if self.items.is_empty() {
+            return;
+        }
+        let i = match self.state.selected() {
+            Some(i) => {
+                if i >= self.items.len() - 1 {
+                    0
+                } else {
+                    i + 1
+                }
+            },
+            None => 0,
+        };
+        self.state.select(Some(i));
+    }
+
+    fn previous(&mut self) {
+        if self.items.is_empty() {
+            return;
+        }
+        let i = match self.state.selected() {
+            Some(i) => {
+                if i == 0 {
+                    self.items.len() - 1
+                } else {
+                    i - 1
+                }
+            },
+            None => 0,
+        };
+        self.state.select(Some(i));
     }
 }
 
-#[derive(Debug, Default)]
-pub struct App {
-    running: bool,
-    selected_tab: sgcp::Resource,
+struct App {
+    should_quit: bool,
+    command_options: StatefulList<&'static str>,
 }
 
 impl App {
-    pub fn new() -> Self {
-        Self::default()
-    }
-
-    pub fn run(mut self, mut terminal: DefaultTerminal) -> Result<()> {
-        self.running = true;
-        while self.running {
-            terminal.draw(|frame| self.render(frame))?;
-            self.handle_crossterm_events()?;
-        }
-        Ok(())
-    }
-
-    ///////////////////////////////
-    // State Management
-    ///////////////////////////////
-
-    pub fn next_tab(&mut self) {
-        self.selected_tab = self.selected_tab.next();
-    }
-
-    pub fn previous_tab(&mut self) {
-        self.selected_tab = self.selected_tab.previous();
-    }
-
-    ///////////////////////////////
-    // Rendering
-    ///////////////////////////////
-
-    fn render(&mut self, frame: &mut Frame) {
-        use Constraint::{Length, Min};
-
-        let main_layout = Layout::default()
-            .direction(Direction::Vertical)
-            .constraints([Min(0), Length(10)])
-            .split(frame.area());
-
-        // Render history
-
-        let history_title = Line::from("GRASP Remote Module").bold().blue().centered();
-
-        frame.render_widget(
-            Paragraph::new("")
-                .block(Block::bordered().title(history_title))
-                .centered(),
-            main_layout[0],
-        );
-
-        // Render tabs
-
-        let tab_area = main_layout[1];
-
-        let vertical = Layout::vertical([Length(1), Min(0), Length(1)]);
-        let [header_area, inner_area, footer_area] = vertical.areas(tab_area);
-
-        let horizontal = Layout::horizontal([Min(0), Length(20)]);
-        let [tabs_area, title_area] = horizontal.areas(header_area);
-
-        let tab_title = Line::from("GRASP Resources").bold().centered();
-
-        frame.render_widget(tab_title, header_area);
-        self.render_tabs(tabs_area, frame.buffer_mut());
-    }
-
-    fn render_tabs(&self, area: Rect, buf: &mut Buffer) {
-        let titles = ALL_SGCP_RESOURCES
-            .iter()
-            .map(|resource| resource.as_str_name());
-
-        let highlight_style = (Color::default(), self.selected_tab.palette().c700);
-        let selected_tab_index = self.selected_tab as i32;
-
-        Tabs::new(titles)
-            .highlight_style(highlight_style)
-            .padding("", "")
-            .divider(" ")
-            .render(area, buf);
-    }
-
-    ///////////////////////////////
-    // Event Handling
-    ///////////////////////////////
-
-    fn handle_crossterm_events(&mut self) -> Result<()> {
-        match event::read()? {
-            Event::Key(key) if key.kind == KeyEventKind::Press => self.on_key_event(key),
-            Event::Mouse(_) => {},
-            Event::Resize(_, _) => {},
-            _ => {},
-        }
-        Ok(())
-    }
-
-    fn on_key_event(&mut self, key: KeyEvent) {
-        match (key.modifiers, key.code) {
-            (_, KeyCode::Esc | KeyCode::Char('q'))
-            | (KeyModifiers::CONTROL, KeyCode::Char('c') | KeyCode::Char('C')) => self.quit(),
-            _ => {},
-        }
-    }
-
-    fn quit(&mut self) {
-        self.running = false;
-    }
-}
-
-///////////////////////////////
-// Tab Rendering
-///////////////////////////////
-
-impl Widget for sgcp::Resource {
-    fn render(self, area: Rect, buf: &mut ratatui::prelude::Buffer)
-    where
-        Self: Sized,
-    {
-        match self {
-            Resource::UndefinedComponent => self.render_tab(area, buf),
-            Resource::Bms => self.render_tab(area, buf),
-            Resource::Emg => self.render_tab(area, buf),
-            Resource::Maestro => self.render_tab(area, buf),
+    fn new() -> Self {
+        Self {
+            should_quit: false,
+            command_options: StatefulList::with_items(
+                enumerate_enum!(sgcp::Resource)
+                    .iter()
+                    .map(|resource| resource.as_str_name())
+                    .collect(),
+            ),
         }
     }
 }
 
-impl sgcp::Resource {
-    fn title(self) -> Line<'static> {
-        format!("  {:?}  ", self)
-            .fg(tailwind::SLATE.c200)
-            .bg(self.palette().c900)
-            .into()
+fn main() -> Result<(), Box<dyn Error>> {
+    enable_raw_mode()?;
+    let mut stdout = io::stdout();
+    execute!(stdout, EnterAlternateScreen, EnableMouseCapture)?;
+    let backend = CrosstermBackend::new(stdout);
+    let mut terminal = Terminal::new(backend)?;
+
+    let app = App::new();
+    let res = run_app(&mut terminal, app);
+
+    disable_raw_mode()?;
+    execute!(
+        terminal.backend_mut(),
+        LeaveAlternateScreen,
+        DisableMouseCapture
+    )?;
+    terminal.show_cursor()?;
+
+    if let Err(err) = res {
+        println!("{err:?}");
     }
 
-    fn render_tab(self, area: Rect, buf: &mut ratatui::prelude::Buffer) {
-        Paragraph::new("Hello world!")
-            .block(self.block())
-            .render(area, buf)
-    }
+    Ok(())
+}
 
-    /// A block surrounding the tab's content
-    fn block(self) -> Block<'static> {
-        Block::bordered()
-            .border_set(symbols::border::PROPORTIONAL_TALL)
-            .padding(Padding::horizontal(1))
-            .border_style(self.palette().c700)
-    }
+fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> io::Result<()> {
+    loop {
+        terminal.draw(|f| ui(f, &mut app))?;
 
-    const fn palette(self) -> tailwind::Palette {
-        match self {
-            Self::UndefinedComponent => tailwind::BLUE,
-            Self::Bms => tailwind::EMERALD,
-            Self::Emg => tailwind::INDIGO,
-            Self::Maestro => tailwind::RED,
+        if let Event::Key(key) = event::read()? {
+            if key.code == KeyCode::Char('q') {
+                app.should_quit = true;
+            }
+        }
+
+        if app.should_quit {
+            return Ok(());
         }
     }
+}
+
+fn ui(frame: &mut Frame, app: &mut App) {
+    let main_chunks = Layout::horizontal([Constraint::Percentage(30), Constraint::Percentage(70)])
+        .split(frame.area());
+
+    let left_column = main_chunks[0];
+    let right_column = main_chunks[1];
+
+    let right_panel = Block::default()
+        .title("Response")
+        .borders(Borders::ALL)
+        .border_type(BorderType::Rounded);
+
+    frame.render_widget(right_panel, right_column);
+
+    let list_items: Vec<ListItem> = app
+        .command_options
+        .items
+        .iter()
+        .map(|resource_name| ListItem::new(resource_name.to_string()))
+        .collect();
+
+    frame.render_stateful_widget(
+        List::new(list_items).block(
+            Block::default()
+                .title("GRASP Resources")
+                .borders(Borders::all())
+                .border_type(BorderType::Rounded),
+        ),
+        left_column,
+        &mut app.command_options.state,
+    )
 }

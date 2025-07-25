@@ -1,0 +1,80 @@
+struct TreeNode {
+    name: String,
+    children: Vec<TreeNode>,
+    is_expanded: bool,
+}
+
+#[derive(Clone)]
+struct FlatListItem {
+    display: String,
+    path: Vec<usize>,
+}
+
+impl TreeNode {
+    fn get_node_mut(&mut self, path: &[usize]) -> Option<&mut TreeNode> {
+        if path.is_empty() {
+            return None;
+        }
+        let mut current_level = self;
+        for &index in &path[..path.len() - 1] {
+            current_level = current_level.children.get_mut(index)?;
+        }
+        current_level.children.get_mut(*path.last().unwrap())
+    }
+
+    fn flatten_tree(&mut self) -> Vec<FlatListItem> {
+        let mut result: Vec<FlatListItem> = Vec::new();
+        let mut path: Vec<usize> = Vec::new();
+
+        self.recurse_flatten(&self.children, &mut path, &mut result, 0usize);
+
+        result
+    }
+
+    fn recurse_flatten(
+        &self,
+        nodes: &[TreeNode],
+        path: &mut Vec<usize>,
+        acc: &mut Vec<FlatListItem>,
+        depth: usize,
+    ) {
+        for (i, node) in nodes.iter().enumerate() {
+            path.push(i);
+
+            let prefix = " ".repeat(depth * 2);
+            let indicator = if !node.children.is_empty() {
+                if node.is_expanded { "▼" } else { "▶" }
+            } else {
+                " "
+            };
+
+            acc.push(FlatListItem {
+                display: format!("{}{} {}", prefix, indicator, node.name),
+                path: path.clone(),
+            });
+
+            if node.is_expanded && !node.children.is_empty() {
+                self.recurse_flatten(&self.children, path, acc, depth + 1);
+            }
+
+            path.pop();
+        }
+    }
+}
+
+impl FlatListItem {
+    fn toggle_expansion(&mut self, tree: &mut TreeNode, path: &[usize]) {
+        if let Some(node) = tree.get_node_mut(&path) {
+            if !node.children.is_empty() {
+                node.is_expanded = !node.is_expanded;
+            }
+        }
+    }
+
+    fn clamp_selection(list: &Vec<FlatListItem>, selected_index: usize) -> usize {
+        if selected_index >= list.len() {
+            return list.len().saturating_sub(1);
+        }
+        selected_index
+    }
+}
