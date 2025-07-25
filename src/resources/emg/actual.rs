@@ -46,7 +46,7 @@ impl Resource for Emg {
             buffer_size: emg_config.buffer_size,
             inner_threshold: 0,
             outer_threshold: 0,
-            prev_grip_state: 1,
+            prev_grip_state: 0,
             inter_channel_sample_duration: emg_config.pause_duration_ms,
         }
     }
