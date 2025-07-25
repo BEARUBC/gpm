@@ -4,6 +4,8 @@ mod exporters;
 mod managers;
 mod resources;
 
+use std::collections::HashMap;
+
 use config::CommandDispatchStrategy;
 use config::Config;
 use dispatchers::Dispatcher;
@@ -18,7 +20,6 @@ use managers::ResourceManager;
 use resources::bms::Bms;
 use resources::emg::Emg;
 use resources::maestro::Maestro;
-use std::collections::HashMap;
 use tokio::sync::mpsc::Sender;
 
 /// Represents the mapping between resource manager keys and the tx component

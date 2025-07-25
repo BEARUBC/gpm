@@ -1,23 +1,34 @@
 // All tasks operating on the EMG system live in this file
-use super::EmgData;
-use crate::config::Config;
-use crate::resources::Resource;
-use crate::resources::common::Adc;
-use anyhow::{Error, Result};
+use std::io;
+use std::thread;
+use std::time::Duration;
+
+use anyhow::Error;
+use anyhow::Result;
 use chrono::Utc;
 use gpm::sgcp;
 use log::*;
 use rand::Rng;
-use rppal::gpio::{Gpio, OutputPin};
-use rppal::spi::{Bus, Mode, SlaveSelect, Spi};
-use std::{io, thread, time::Duration};
+use rppal::gpio::Gpio;
+use rppal::gpio::OutputPin;
+use rppal::spi::Bus;
+use rppal::spi::Mode;
+use rppal::spi::SlaveSelect;
+use rppal::spi::Spi;
+
+use super::EmgData;
+use crate::config::Config;
+use crate::resources::Resource;
+use crate::resources::common::Adc;
 
 pub struct Emg {
     pub adc: Adc,
     pub buffer_size: usize,
     pub inner_threshold: u16,
     pub outer_threshold: u16,
-    pub inter_channel_sample_duration: u64, // different from sampling speed, this is the time between reading the inner and outer channels
+    pub prev_grip_state: i32,
+    pub inter_channel_sample_duration: u64, /* different from sampling speed, this is the time
+                                             * between reading the inner and outer channels */
 }
 
 impl Resource for Emg {
@@ -35,6 +46,7 @@ impl Resource for Emg {
             buffer_size: emg_config.buffer_size,
             inner_threshold: 0,
             outer_threshold: 0,
+            prev_grip_state: 1,
             inter_channel_sample_duration: emg_config.pause_duration_ms,
         }
     }
@@ -63,11 +75,14 @@ impl Emg {
         }
 
         if values[0] >= self.inner_threshold && values[1] <= self.outer_threshold {
-            Ok(1) // Open
+            self.prev_grip_state = OPEN_FIST;
+            Ok(OPEN_FIST)
         } else if values[0] <= self.inner_threshold && values[1] >= self.outer_threshold {
-            Ok(0) // Close
+            self.prev_grip_state = CLOSE_FIST;
+            Ok(CLOSE_FIST)
         } else {
-            Ok(-1) // No action
+            info!("EMG values are out of expected range. Falling back to previous action.");
+            Ok(self.prev_grip_state)
         }
     }
 

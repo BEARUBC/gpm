@@ -1,8 +1,13 @@
 // MCP3008 Client
-use anyhow::{Context, Error, Result};
-
-use rppal::gpio::{Gpio, OutputPin};
-use rppal::spi::{Bus, Mode, SlaveSelect, Spi};
+use anyhow::Context;
+use anyhow::Error;
+use anyhow::Result;
+use rppal::gpio::Gpio;
+use rppal::gpio::OutputPin;
+use rppal::spi::Bus;
+use rppal::spi::Mode;
+use rppal::spi::SlaveSelect;
+use rppal::spi::Spi;
 
 pub struct Adc {
     pub spi: Spi,
@@ -40,8 +45,8 @@ impl Adc {
         let start_bit = 0b00000001;
 
         // second byte: mode (differential or single read) and channel select
-        // sets bit 7 to 1 first, then left-shifts channel number by 4 bits to put it into bits 6,5,4
-        // then combines with bitwise OR operator
+        // sets bit 7 to 1 first, then left-shifts channel number by 4 bits to put it into bits
+        // 6,5,4 then combines with bitwise OR operator
         // remaining bits are ignored
         let config_bits = 0b10000000 | (channel << 4);
 
@@ -51,7 +56,7 @@ impl Adc {
         // response buffer
         let mut rx = [0u8; 3];
 
-        //activate chip select
+        // activate chip select
         self.cs_pin.set_low();
 
         // full-duplex SPI transfer: sends tx[], fills rx[]
@@ -64,7 +69,8 @@ impl Adc {
 
         // adc sends back 3 byte response
         // actual response is 10 bits and spread across rx[1](bits 9-8) and rx[2](bits 7-0)
-        // isolate rx[1] result bits, then shift them to 9-8 in a 16 bit number, then add remaining bits by combining them with bitwise OR
+        // isolate rx[1] result bits, then shift them to 9-8 in a 16 bit number, then add remaining
+        // bits by combining them with bitwise OR
         let result = ((rx[1] & 0b00000011) as u16) << 8 | (rx[2] as u16);
 
         Ok(result)

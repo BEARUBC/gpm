@@ -1,12 +1,14 @@
-use crate::ManagerChannelMap;
+use std::time::Duration;
 
-use super::EmgDispatcher;
-use crate::config::Config;
-use crate::dispatchers::{Dispatcher, dispatch_task};
 use gpm::sgcp;
 use log::*;
-use std::time::Duration;
 use tokio::time::interval;
+
+use super::EmgDispatcher;
+use crate::ManagerChannelMap;
+use crate::config::Config;
+use crate::dispatchers::Dispatcher;
+use crate::dispatchers::dispatch_task;
 
 // TODO: refactor
 
@@ -34,7 +36,8 @@ impl Dispatcher for EmgDispatcher {
                 sgcp::Resource::Maestro,
             ),
         ];
-        // let mut HAPTICS_idle = interval(Duration::from_millis(1000)); // 1 Hz sampling rate // example for haptics
+        // let mut HAPTICS_idle = interval(Duration::from_millis(1000)); // 1 Hz sampling rate //
+        // example for haptics
         let send_channel_map = manager_channel_map.clone();
         loop {
             tokio::select! {

@@ -1,7 +1,8 @@
-use log::LevelFilter;
-use serde::Deserialize;
 use std::fs;
 use std::sync::OnceLock;
+
+use log::LevelFilter;
+use serde::Deserialize;
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "snake_case")]
