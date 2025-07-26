@@ -69,7 +69,7 @@ impl NestedListNode {
         for (i, node) in nodes.iter().enumerate() {
             path.push(i);
 
-            let prefix = " ".repeat(depth * 2);
+            let prefix = " ".repeat(depth);
             let indicator = if !node.children.is_empty() {
                 if node.is_expanded { "▼" } else { "▶" }
             } else {
@@ -95,8 +95,6 @@ impl NestedListNode {
 // TODO: improve
 impl FlattenedListNode {
     pub fn toggle_expansion(&mut self, tree: &mut Vec<NestedListNode>) {
-        // TODO: This works because you only ever 1 level of nesting. The first item in the path should
-        // be which bucket to look in.
         for (i, tree_node) in tree.iter_mut().enumerate() {
             if *self.path.get(0).unwrap() == i {
                 if !tree_node.children.is_empty() {

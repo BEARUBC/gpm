@@ -1,7 +1,7 @@
 mod client;
 mod widgets;
 
-use client::GpmClient;
+use client::{GpmClient, GpmResponse};
 use crossterm::{
     event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyEvent},
     execute,
@@ -12,7 +12,7 @@ use ratatui::{
     backend::{Backend, CrosstermBackend},
     layout::{Constraint, Layout},
     style::{Color, Modifier, Style},
-    widgets::{Block, BorderType, Borders, List, ListItem},
+    widgets::{Block, BorderType, Borders, List, ListItem, Paragraph},
 };
 use std::{
     error::Error,
@@ -28,6 +28,7 @@ struct App {
     command_tree: Vec<NestedListNode>,
     command_list: StatefulList<FlattenedListNode>,
     gpm_client: GpmClient,
+    responses: Vec<GpmResponse>,
 }
 
 impl App {
@@ -52,6 +53,7 @@ impl App {
             command_tree,
             command_list,
             gpm_client: GpmClient::new(),
+            responses: Vec::new(),
         }
     }
 
@@ -99,7 +101,8 @@ impl App {
                             gpm::sgcp::Resource::from_str_name(root_node.name.as_str()).unwrap(),
                             *task_code as i32 + 1, // +1 since we don't render task 0
                         )
-                        .unwrap();
+                        .ok() // TODO: handle errors
+                        .map(|res| self.responses.push(res));
                 }
             }),
             _ => {},
@@ -113,13 +116,16 @@ impl App {
 
         let left_column = main_chunks[0];
         let right_column_chunks =
-            Layout::vertical([Constraint::Percentage(20), Constraint::Min(0)])
-                .split(main_chunks[1]);
+            Layout::vertical([Constraint::Length(3), Constraint::Min(0)]).split(main_chunks[1]);
 
         let right_panel_top = Block::default()
-            .title("Request")
+            .title("Status")
             .borders(Borders::ALL)
             .border_type(BorderType::Rounded);
+        frame.render_widget(
+            Paragraph::new("Connected to localhost at port: 4760"),
+            right_panel_top.inner(right_column_chunks[0]),
+        );
 
         frame.render_widget(right_panel_top, right_column_chunks[0]);
 
@@ -127,8 +133,20 @@ impl App {
             .title("Response")
             .borders(Borders::ALL)
             .border_type(BorderType::Rounded);
+        let inner_area = right_panel_bottom.inner(right_column_chunks[1]);
 
         frame.render_widget(right_panel_bottom, right_column_chunks[1]);
+
+        if !self.responses.is_empty() {
+            frame.render_widget(
+                List::new(
+                    self.responses
+                        .iter()
+                        .map(|v| ListItem::new(v.message.as_str())),
+                ),
+                inner_area,
+            );
+        }
 
         frame.render_stateful_widget(
             List::new(self.command_list.items.iter().map(|v| ListItem::new(v)))

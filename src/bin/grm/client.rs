@@ -7,6 +7,10 @@ pub struct GpmClient {
     stream: TcpStream,
 }
 
+pub struct GpmResponse {
+    pub message: String,
+}
+
 impl GpmClient {
     pub fn new() -> Self {
         Self {
@@ -14,7 +18,7 @@ impl GpmClient {
         }
     }
 
-    pub fn send(&mut self, component: gpm::sgcp::Resource, task: i32) -> io::Result<()> {
+    pub fn send(&mut self, component: gpm::sgcp::Resource, task: i32) -> io::Result<GpmResponse> {
         let mut msg = gpm::sgcp::Request::default();
 
         msg.resource = component as i32;
@@ -40,6 +44,8 @@ impl GpmClient {
         let bytes_read = self.stream.read(&mut buffer)?;
         let response = String::from_utf8_lossy(&buffer[..bytes_read]);
 
-        Ok(())
+        Ok(GpmResponse {
+            message: response.into_owned(),
+        })
     }
 }
