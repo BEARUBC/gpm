@@ -1,4 +1,3 @@
-use chrono::{DateTime, Local};
 use gpm::sgcp::*;
 use prost::Message;
 use std::io::{self, Read, Write};
@@ -10,7 +9,6 @@ pub struct GpmClient {
 
 pub struct GpmResponse {
     pub message: String,
-    pub timestamp: DateTime<Local>,
     pub resource: Resource,
     pub task_code: String,
 }
@@ -50,9 +48,8 @@ impl GpmClient {
 
         Ok(GpmResponse {
             message: response.into_owned(),
-            timestamp: Local::now(),
             resource: msg.resource(),
-            task_code: msg.task_code.clone(),
+            task_code: msg.task_code,
         })
     }
 }

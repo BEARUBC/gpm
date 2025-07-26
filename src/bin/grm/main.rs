@@ -1,4 +1,5 @@
 mod client;
+mod utils;
 mod widgets;
 
 use client::{GpmClient, GpmResponse};
@@ -12,7 +13,7 @@ use ratatui::{
     backend::{Backend, CrosstermBackend},
     layout::{Constraint, Layout},
     style::{Color, Modifier, Style},
-    widgets::{Block, BorderType, Borders, List, ListItem, Paragraph},
+    widgets::{Block, BorderType, Borders, List, ListItem, Padding, Paragraph},
 };
 use std::{
     error::Error,
@@ -142,7 +143,6 @@ impl App {
                 List::new(self.responses.iter().map(|v| {
                     ListItem::new(format!(
                         "[{}] {}: {}",
-                        //v.timestamp.to_rfc3339(),
                         v.resource.as_str_name(),
                         v.message.as_str(),
                         v.task_code
@@ -158,14 +158,14 @@ impl App {
                     Block::default()
                         .title("Resources")
                         .borders(Borders::all())
-                        .border_type(BorderType::Rounded),
+                        .border_type(BorderType::Rounded)
+                        .padding(Padding::new(1, 1, 0, 0)),
                 )
                 .highlight_style(
                     Style::default()
-                        .fg(Color::Black)
+                        .bg(Color::DarkGray)
                         .add_modifier(Modifier::BOLD),
-                )
-                .highlight_symbol(">> "),
+                ),
             left_column,
             &mut self.command_list.state,
         )

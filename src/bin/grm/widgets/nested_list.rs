@@ -1,3 +1,4 @@
+use crate::utils;
 use ratatui::text::Text;
 
 #[derive(Debug, Clone)]
@@ -15,7 +16,7 @@ pub struct FlattenedListNode {
 
 impl<'a> Into<Text<'a>> for &'a FlattenedListNode {
     fn into(self) -> Text<'a> {
-        Text::from(self.display.as_str())
+        Text::from(utils::string::snake_to_title_case(self.display.as_str()))
     }
 }
 
