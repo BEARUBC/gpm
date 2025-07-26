@@ -9,8 +9,8 @@ pub struct NestedListNode {
 
 #[derive(Debug, Clone)]
 pub struct FlattenedListNode {
-    display: String,
-    path: Vec<usize>,
+    pub display: String,
+    pub path: Vec<usize>,
 }
 
 impl<'a> Into<Text<'a>> for &'a FlattenedListNode {
@@ -51,13 +51,11 @@ impl NestedListNode {
         }
     }
 
-    pub fn flatten(&self, i: usize) -> Vec<FlattenedListNode> {
+    pub fn flatten(nodes: &Vec<NestedListNode>) -> Vec<FlattenedListNode> {
         let mut result: Vec<FlattenedListNode> = Vec::new();
         let mut path: Vec<usize> = Vec::new();
 
-        path.push(i);
-
-        Self::recurse_flatten(&[self.clone()], &mut path, &mut result, 0usize);
+        Self::recurse_flatten(nodes, &mut path, &mut result, 0usize);
 
         result
     }
@@ -113,5 +111,9 @@ impl FlattenedListNode {
             return list_len.saturating_sub(1);
         }
         selected_index
+    }
+
+    pub fn is_root(&self) -> bool {
+        self.path.len() == 1
     }
 }

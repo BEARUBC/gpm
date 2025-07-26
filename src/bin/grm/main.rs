@@ -1,6 +1,7 @@
 mod client;
 mod widgets;
 
+use client::GpmClient;
 use crossterm::{
     event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyEvent},
     execute,
@@ -43,13 +44,7 @@ impl App {
             })
             .collect();
 
-        let command_list = StatefulList::with_items(
-            command_tree
-                .iter()
-                .enumerate()
-                .flat_map(|(i, tree)| tree.flatten(i))
-                .collect(),
-        );
+        let command_list = StatefulList::with_items(NestedListNode::flatten(&command_tree));
 
         Self {
             should_quit: false,
@@ -78,26 +73,31 @@ impl App {
             KeyCode::Down | KeyCode::Char('j') => self.command_list.next(),
             KeyCode::Up | KeyCode::Char('k') => self.command_list.previous(),
             KeyCode::Enter => self.command_list.state.selected().map_or((), |index| {
-                self.command_list
-                    .items
-                    .get_mut(index)
-                    .unwrap()
-                    .toggle_expansion(&mut self.command_tree);
+                let node = self.command_list.items.get_mut(index).unwrap();
 
-                self.command_list = StatefulList::with_items(
-                    self.command_tree
-                        .iter()
-                        .enumerate()
-                        .flat_map(|(i, tree)| tree.flatten(i))
-                        .collect(),
-                );
+                print!("{:?}", node.path);
 
-                self.command_list
-                    .state
-                    .select(Some(FlattenedListNode::clamp_selection(
-                        self.command_list.items.len(),
-                        index,
-                    )))
+                if node.is_root() {
+                    node.toggle_expansion(&mut self.command_tree);
+
+                    self.command_list =
+                        StatefulList::with_items(NestedListNode::flatten(&self.command_tree));
+
+                    self.command_list
+                        .state
+                        .select(Some(FlattenedListNode::clamp_selection(
+                            self.command_list.items.len(),
+                            index,
+                        )))
+                } else {
+                    // TODO: need to get the root node to get the resource name
+                    // Send a request
+                    GpmClient::send(
+                        gpm::sgcp::Resource::from_str_name("BMS").unwrap(),
+                        1i32, // where to get the task code from?
+                    )
+                    .unwrap();
+                }
             }),
             _ => {},
         }
