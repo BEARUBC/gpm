@@ -1,13 +1,22 @@
-struct TreeNode {
-    name: String,
-    children: Vec<TreeNode>,
-    is_expanded: bool,
+use ratatui::text::Text;
+
+#[derive(Debug, Clone)]
+pub struct TreeNode {
+    pub name: String,
+    pub children: Vec<TreeNode>,
+    pub is_expanded: bool,
 }
 
-#[derive(Clone)]
-struct FlatListItem {
+#[derive(Debug, Clone)]
+pub struct FlatListItem {
     display: String,
     path: Vec<usize>,
+}
+
+impl<'a> Into<Text<'a>> for FlatListItem {
+    fn into(self) -> Text<'a> {
+        Text::from(self.display)
+    }
 }
 
 impl TreeNode {
@@ -22,17 +31,16 @@ impl TreeNode {
         current_level.children.get_mut(*path.last().unwrap())
     }
 
-    fn flatten_tree(&mut self) -> Vec<FlatListItem> {
+    pub fn flatten_tree(&self) -> Vec<FlatListItem> {
         let mut result: Vec<FlatListItem> = Vec::new();
         let mut path: Vec<usize> = Vec::new();
 
-        self.recurse_flatten(&self.children, &mut path, &mut result, 0usize);
+        Self::recurse_flatten(&[self.clone()], &mut path, &mut result, 0usize);
 
         result
     }
 
     fn recurse_flatten(
-        &self,
         nodes: &[TreeNode],
         path: &mut Vec<usize>,
         acc: &mut Vec<FlatListItem>,
@@ -54,7 +62,7 @@ impl TreeNode {
             });
 
             if node.is_expanded && !node.children.is_empty() {
-                self.recurse_flatten(&self.children, path, acc, depth + 1);
+                Self::recurse_flatten(&node.children, path, acc, depth + 1);
             }
 
             path.pop();

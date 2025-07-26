@@ -16,10 +16,12 @@ use std::{
     error::Error,
     io::{self},
 };
+use widgets::nested_list::TreeNode;
 
 import_sgcp!();
 
-macro_rules! enumerate_enum {
+// NOTE: Only for C-like enums
+macro_rules! iterate_enum {
     ($enum:path) => {{
         std::iter::successors(Some(1), |&i| Some(i + 1))
             .map_while(|i| <$enum as std::convert::TryFrom<i32>>::try_from(i).ok())
@@ -81,6 +83,7 @@ impl<T> StatefulList<T> {
 struct App {
     should_quit: bool,
     command_options: StatefulList<&'static str>,
+    nested_command_options: Vec<TreeNode>,
 }
 
 impl App {
@@ -88,11 +91,26 @@ impl App {
         Self {
             should_quit: false,
             command_options: StatefulList::with_items(
-                enumerate_enum!(sgcp::Resource)
+                iterate_enum!(sgcp::Resource)
                     .iter()
                     .map(|resource| resource.as_str_name())
                     .collect(),
             ),
+            nested_command_options: iterate_enum!(sgcp::Resource)
+                .iter()
+                .map(|resource| TreeNode {
+                    name: resource.as_str_name().to_owned(),
+                    children: get_tasks_for_resource(resource)
+                        .iter()
+                        .map(|task_name| TreeNode {
+                            name: task_name.to_owned(),
+                            children: Vec::new(),
+                            is_expanded: false,
+                        })
+                        .collect(),
+                    is_expanded: true,
+                })
+                .collect(),
         }
     }
 }
@@ -143,20 +161,28 @@ fn ui(frame: &mut Frame, app: &mut App) {
         .split(frame.area());
 
     let left_column = main_chunks[0];
-    let right_column = main_chunks[1];
+    let right_column_chunks =
+        Layout::vertical([Constraint::Percentage(20), Constraint::Min(0)]).split(main_chunks[1]);
 
-    let right_panel = Block::default()
+    let right_panel_top = Block::default()
+        .title("Request")
+        .borders(Borders::ALL)
+        .border_type(BorderType::Rounded);
+
+    frame.render_widget(right_panel_top, right_column_chunks[0]);
+
+    let right_panel_bottom = Block::default()
         .title("Response")
         .borders(Borders::ALL)
         .border_type(BorderType::Rounded);
 
-    frame.render_widget(right_panel, right_column);
+    frame.render_widget(right_panel_bottom, right_column_chunks[1]);
 
     let list_items: Vec<ListItem> = app
-        .command_options
-        .items
-        .iter()
-        .map(|resource_name| ListItem::new(resource_name.to_string()))
+        .nested_command_options
+        .iter_mut()
+        .flat_map(|tree| tree.flatten_tree())
+        .map(|list| ListItem::new(list))
         .collect();
 
     frame.render_stateful_widget(
@@ -169,4 +195,27 @@ fn ui(frame: &mut Frame, app: &mut App) {
         left_column,
         &mut app.command_options.state,
     )
+}
+
+fn get_tasks_for_resource(resource: &sgcp::Resource) -> Vec<String> {
+    match resource {
+        Resource::UndefinedComponent => {
+            panic!("Should not display the undefined components on the UI")
+        },
+
+        Resource::Bms => iterate_enum!(sgcp::bms::Task)
+            .iter()
+            .map(|task| task.as_str_name().to_owned())
+            .collect(),
+
+        Resource::Emg => iterate_enum!(sgcp::emg::Task)
+            .iter()
+            .map(|task| task.as_str_name().to_owned())
+            .collect(),
+
+        Resource::Maestro => iterate_enum!(sgcp::maestro::Task)
+            .iter()
+            .map(|task| task.as_str_name().to_owned())
+            .collect(),
+    }
 }
