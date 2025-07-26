@@ -20,6 +20,22 @@ impl<'a> Into<Text<'a>> for FlattenedListNode {
 }
 
 impl NestedListNode {
+    pub fn new(name: impl Into<String>) -> Self {
+        Self {
+            name: name.into(),
+            children: Vec::new(),
+            is_expanded: false,
+        }
+    }
+
+    pub fn with_children(name: impl Into<String>, children: Vec<Self>) -> Self {
+        Self {
+            name: name.into(),
+            children,
+            is_expanded: false,
+        }
+    }
+
     fn get_node_mut(&mut self, path: &[usize]) -> Option<&mut NestedListNode> {
         if path.is_empty() {
             return None;

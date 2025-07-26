@@ -28,17 +28,14 @@ impl App {
             should_quit: false,
             command_list: gpm::iterate_enum!(gpm::sgcp::Resource)
                 .iter()
-                .map(|resource| NestedListNode {
-                    name: resource.as_str_name().to_owned(),
-                    children: gpm::get_tasks_for_resource(resource)
-                        .iter()
-                        .map(|task_name| NestedListNode {
-                            name: task_name.to_owned(),
-                            children: Vec::new(),
-                            is_expanded: false,
-                        })
-                        .collect(),
-                    is_expanded: false,
+                .map(|resource| {
+                    NestedListNode::with_children(
+                        resource.as_str_name(),
+                        gpm::get_tasks_for_resource(resource)
+                            .iter()
+                            .map(|task_name| NestedListNode::new(task_name))
+                            .collect(),
+                    )
                 })
                 .collect(),
         }
