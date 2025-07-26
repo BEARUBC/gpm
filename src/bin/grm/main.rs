@@ -75,8 +75,6 @@ impl App {
             KeyCode::Enter => self.command_list.state.selected().map_or((), |index| {
                 let node = self.command_list.items.get_mut(index).unwrap();
 
-                print!("{:?}", node.path);
-
                 if node.is_root() {
                     node.toggle_expansion(&mut self.command_tree);
 
@@ -90,11 +88,13 @@ impl App {
                             index,
                         )))
                 } else {
-                    // TODO: need to get the root node to get the resource name
-                    // Send a request
+                    let root = node.path.get(0).unwrap();
+                    let root_node = self.command_tree.get(*root).unwrap();
+                    let task_code = node.path.get(1).unwrap();
+
                     GpmClient::send(
-                        gpm::sgcp::Resource::from_str_name("BMS").unwrap(),
-                        1i32, // where to get the task code from?
+                        gpm::sgcp::Resource::from_str_name(root_node.name.as_str()).unwrap(),
+                        *task_code as i32 + 1, // +1 since we don't render task 0
                     )
                     .unwrap();
                 }
