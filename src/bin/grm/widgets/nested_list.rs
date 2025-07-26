@@ -1,26 +1,26 @@
 use ratatui::text::Text;
 
 #[derive(Debug, Clone)]
-pub struct TreeNode {
+pub struct NestedListNode {
     pub name: String,
-    pub children: Vec<TreeNode>,
+    pub children: Vec<NestedListNode>,
     pub is_expanded: bool,
 }
 
 #[derive(Debug, Clone)]
-pub struct FlatListItem {
+pub struct FlattenedListNode {
     display: String,
     path: Vec<usize>,
 }
 
-impl<'a> Into<Text<'a>> for FlatListItem {
+impl<'a> Into<Text<'a>> for FlattenedListNode {
     fn into(self) -> Text<'a> {
         Text::from(self.display)
     }
 }
 
-impl TreeNode {
-    fn get_node_mut(&mut self, path: &[usize]) -> Option<&mut TreeNode> {
+impl NestedListNode {
+    fn get_node_mut(&mut self, path: &[usize]) -> Option<&mut NestedListNode> {
         if path.is_empty() {
             return None;
         }
@@ -31,8 +31,8 @@ impl TreeNode {
         current_level.children.get_mut(*path.last().unwrap())
     }
 
-    pub fn flatten_tree(&self) -> Vec<FlatListItem> {
-        let mut result: Vec<FlatListItem> = Vec::new();
+    pub fn flatten(&self) -> Vec<FlattenedListNode> {
+        let mut result: Vec<FlattenedListNode> = Vec::new();
         let mut path: Vec<usize> = Vec::new();
 
         Self::recurse_flatten(&[self.clone()], &mut path, &mut result, 0usize);
@@ -41,9 +41,9 @@ impl TreeNode {
     }
 
     fn recurse_flatten(
-        nodes: &[TreeNode],
+        nodes: &[NestedListNode],
         path: &mut Vec<usize>,
-        acc: &mut Vec<FlatListItem>,
+        acc: &mut Vec<FlattenedListNode>,
         depth: usize,
     ) {
         for (i, node) in nodes.iter().enumerate() {
@@ -56,7 +56,7 @@ impl TreeNode {
                 " "
             };
 
-            acc.push(FlatListItem {
+            acc.push(FlattenedListNode {
                 display: format!("{}{} {}", prefix, indicator, node.name),
                 path: path.clone(),
             });
@@ -70,8 +70,8 @@ impl TreeNode {
     }
 }
 
-impl FlatListItem {
-    fn toggle_expansion(&mut self, tree: &mut TreeNode, path: &[usize]) {
+impl FlattenedListNode {
+    fn toggle_expansion(&mut self, tree: &mut NestedListNode, path: &[usize]) {
         if let Some(node) = tree.get_node_mut(&path) {
             if !node.children.is_empty() {
                 node.is_expanded = !node.is_expanded;
@@ -79,7 +79,7 @@ impl FlatListItem {
         }
     }
 
-    fn clamp_selection(list: &Vec<FlatListItem>, selected_index: usize) -> usize {
+    fn clamp_selection(list: &Vec<FlattenedListNode>, selected_index: usize) -> usize {
         if selected_index >= list.len() {
             return list.len().saturating_sub(1);
         }

@@ -20,33 +20,24 @@ impl<T> StatefulList<T> {
         if self.items.is_empty() {
             return;
         }
-        let i = match self.state.selected() {
-            Some(i) => {
-                if i >= self.items.len() - 1 {
-                    0
-                } else {
-                    i + 1
-                }
-            },
-            None => 0,
-        };
-        self.state.select(Some(i));
+
+        self.state.select(Some(
+            self.state
+                .selected()
+                .map_or(0, |v| (v + 1) % self.items.len()),
+        ))
     }
 
     pub fn previous(&mut self) {
         if self.items.is_empty() {
             return;
         }
-        let i = match self.state.selected() {
-            Some(i) => {
-                if i == 0 {
-                    self.items.len() - 1
-                } else {
-                    i - 1
-                }
-            },
-            None => 0,
-        };
-        self.state.select(Some(i));
+
+        self.state.select(Some(
+            self.state
+                .selected()
+                // Wraps the index to the end of the list if it goes < 0
+                .map_or(0, |v| (v + self.items.len() - 1) % self.items.len()),
+        ));
     }
 }

@@ -1,7 +1,7 @@
 mod widgets;
 
 use crossterm::{
-    event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode},
+    event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyEvent},
     execute,
     terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
 };
@@ -15,11 +15,11 @@ use std::{
     error::Error,
     io::{self},
 };
-use widgets::nested_list::TreeNode;
+use widgets::nested_list::NestedListNode;
 
 struct App {
     should_quit: bool,
-    command_list: Vec<TreeNode>,
+    command_list: Vec<NestedListNode>,
 }
 
 impl App {
@@ -28,11 +28,11 @@ impl App {
             should_quit: false,
             command_list: gpm::iterate_enum!(gpm::sgcp::Resource)
                 .iter()
-                .map(|resource| TreeNode {
+                .map(|resource| NestedListNode {
                     name: resource.as_str_name().to_owned(),
                     children: gpm::get_tasks_for_resource(resource)
                         .iter()
-                        .map(|task_name| TreeNode {
+                        .map(|task_name| NestedListNode {
                             name: task_name.to_owned(),
                             children: Vec::new(),
                             is_expanded: false,
@@ -49,14 +49,19 @@ impl App {
             terminal.draw(|f| self.render(f))?;
 
             if let Event::Key(key) = event::read()? {
-                if key.code == KeyCode::Char('q') {
-                    self.should_quit = true;
-                }
+                self.handle_key_events(key);
             }
 
             if self.should_quit {
                 return Ok(());
             }
+        }
+    }
+
+    fn handle_key_events(&mut self, key: KeyEvent) {
+        match key.code {
+            KeyCode::Char('q') => self.should_quit = true,
+            _ => {},
         }
     }
 
@@ -87,7 +92,7 @@ impl App {
         let list_items: Vec<ListItem> = self
             .command_list
             .iter_mut()
-            .flat_map(|tree| tree.flatten_tree())
+            .flat_map(|tree| tree.flatten())
             .map(|list| ListItem::new(list))
             .collect();
 
