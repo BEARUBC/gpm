@@ -9,35 +9,50 @@ use ratatui::{
     Frame, Terminal,
     backend::{Backend, CrosstermBackend},
     layout::{Constraint, Layout},
+    style::{Color, Modifier, Style},
     widgets::{Block, BorderType, Borders, List, ListItem},
 };
 use std::{
     error::Error,
     io::{self},
 };
-use widgets::nested_list::NestedListNode;
+use widgets::{
+    nested_list::{FlattenedListNode, NestedListNode},
+    stateful_list::StatefulList,
+};
 
 struct App {
     should_quit: bool,
-    command_list: Vec<NestedListNode>,
+    command_tree: Vec<NestedListNode>,
+    command_list: StatefulList<FlattenedListNode>,
 }
 
 impl App {
     fn new() -> Self {
+        let command_tree: Vec<NestedListNode> = gpm::enum_values!(gpm::sgcp::Resource)
+            .iter()
+            .map(|resource| {
+                NestedListNode::with_children(
+                    resource.as_str_name(),
+                    gpm::get_tasks_for_resource(resource)
+                        .iter()
+                        .map(|task_name| NestedListNode::new(task_name))
+                        .collect(),
+                )
+            })
+            .collect();
+
+        let command_list = StatefulList::with_items(
+            command_tree
+                .iter()
+                .flat_map(|tree| tree.flatten())
+                .collect(),
+        );
+
         Self {
             should_quit: false,
-            command_list: gpm::iterate_enum!(gpm::sgcp::Resource)
-                .iter()
-                .map(|resource| {
-                    NestedListNode::with_children(
-                        resource.as_str_name(),
-                        gpm::get_tasks_for_resource(resource)
-                            .iter()
-                            .map(|task_name| NestedListNode::new(task_name))
-                            .collect(),
-                    )
-                })
-                .collect(),
+            command_tree,
+            command_list,
         }
     }
 
@@ -58,6 +73,21 @@ impl App {
     fn handle_key_events(&mut self, key: KeyEvent) {
         match key.code {
             KeyCode::Char('q') => self.should_quit = true,
+            KeyCode::Down | KeyCode::Char('j') => self.command_list.next(),
+            KeyCode::Up | KeyCode::Char('k') => self.command_list.previous(),
+            KeyCode::Enter => self.command_list.state.selected().map_or((), |index| {
+                self.command_list
+                    .items
+                    .get_mut(index)
+                    .unwrap()
+                    .toggle_expansion(&mut self.command_tree);
+                self.command_list = StatefulList::with_items(
+                    self.command_tree
+                        .iter()
+                        .flat_map(|tree| tree.flatten())
+                        .collect(),
+                );
+            }),
             _ => {},
         }
     }
@@ -86,21 +116,22 @@ impl App {
 
         frame.render_widget(right_panel_bottom, right_column_chunks[1]);
 
-        let list_items: Vec<ListItem> = self
-            .command_list
-            .iter_mut()
-            .flat_map(|tree| tree.flatten())
-            .map(|list| ListItem::new(list))
-            .collect();
-
-        frame.render_widget(
-            List::new(list_items).block(
-                Block::default()
-                    .title("GRASP Resources")
-                    .borders(Borders::all())
-                    .border_type(BorderType::Rounded),
-            ),
+        frame.render_stateful_widget(
+            List::new(self.command_list.items.iter().map(|v| ListItem::new(v)))
+                .block(
+                    Block::default()
+                        .title("GRASP Resources")
+                        .borders(Borders::all())
+                        .border_type(BorderType::Rounded),
+                )
+                .highlight_style(
+                    Style::default()
+                        .fg(Color::Black)
+                        .add_modifier(Modifier::BOLD),
+                )
+                .highlight_symbol(">> "),
             left_column,
+            &mut self.command_list.state,
         )
     }
 }

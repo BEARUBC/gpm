@@ -13,9 +13,9 @@ pub struct FlattenedListNode {
     path: Vec<usize>,
 }
 
-impl<'a> Into<Text<'a>> for FlattenedListNode {
+impl<'a> Into<Text<'a>> for &'a FlattenedListNode {
     fn into(self) -> Text<'a> {
-        Text::from(self.display)
+        Text::from(self.display.as_str())
     }
 }
 
@@ -41,10 +41,14 @@ impl NestedListNode {
             return None;
         }
         let mut current_level = self;
-        for &index in &path[..path.len() - 1] {
-            current_level = current_level.children.get_mut(index)?;
+        if path.len() == 1 {
+            current_level.children.get_mut(*path.get(0).unwrap())
+        } else {
+            for &index in &path[..path.len() - 1] {
+                current_level = current_level.children.get_mut(index)?;
+            }
+            current_level.children.get_mut(*path.last().unwrap())
         }
-        current_level.children.get_mut(*path.last().unwrap())
     }
 
     pub fn flatten(&self) -> Vec<FlattenedListNode> {
@@ -86,11 +90,16 @@ impl NestedListNode {
     }
 }
 
+// TODO: improve
 impl FlattenedListNode {
-    fn toggle_expansion(&mut self, tree: &mut NestedListNode, path: &[usize]) {
-        if let Some(node) = tree.get_node_mut(&path) {
-            if !node.children.is_empty() {
-                node.is_expanded = !node.is_expanded;
+    pub fn toggle_expansion(&mut self, tree: &mut Vec<NestedListNode>) {
+        // TODO: This works because you only ever 1 level of nesting. The first item in the path should
+        // be which bucket to look in.
+        for (i, tree_node) in tree.iter_mut().enumerate() {
+            if *self.path.get(0).unwrap() == i {
+                if !tree_node.children.is_empty() {
+                    tree_node.is_expanded = !tree_node.is_expanded;
+                }
             }
         }
     }

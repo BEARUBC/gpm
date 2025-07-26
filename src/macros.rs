@@ -44,7 +44,7 @@ macro_rules! not_on_pi {
 /// Collects the values of a *C-like* struct into a vec. Note that this macro
 /// assumes the enum derives prost::enumeration (or implements TryFrom<i32>)
 #[macro_export]
-macro_rules! iterate_enum {
+macro_rules! enum_values {
     ($enum:path) => {{
         std::iter::successors(Some(1), |&i| Some(i + 1))
             .map_while(|i| <$enum as std::convert::TryFrom<i32>>::try_from(i).ok())
@@ -57,7 +57,7 @@ macro_rules! iterate_enum {
 #[macro_export]
 macro_rules! get_task_names {
     ($enum:path) => {
-        iterate_enum!($enum)
+        enum_values!($enum)
             .iter()
             .map(|task| task.as_str_name().to_owned())
             .collect::<Vec<String>>()
