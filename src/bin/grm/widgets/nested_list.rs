@@ -51,9 +51,11 @@ impl NestedListNode {
         }
     }
 
-    pub fn flatten(&self) -> Vec<FlattenedListNode> {
+    pub fn flatten(&self, i: usize) -> Vec<FlattenedListNode> {
         let mut result: Vec<FlattenedListNode> = Vec::new();
         let mut path: Vec<usize> = Vec::new();
+
+        path.push(i);
 
         Self::recurse_flatten(&[self.clone()], &mut path, &mut result, 0usize);
 
@@ -90,6 +92,8 @@ impl NestedListNode {
     }
 }
 
+// TODO: Could use typestate pattern to manage the sync between list and tree view?
+
 // TODO: improve
 impl FlattenedListNode {
     pub fn toggle_expansion(&mut self, tree: &mut Vec<NestedListNode>) {
@@ -104,9 +108,9 @@ impl FlattenedListNode {
         }
     }
 
-    fn clamp_selection(list: &Vec<FlattenedListNode>, selected_index: usize) -> usize {
-        if selected_index >= list.len() {
-            return list.len().saturating_sub(1);
+    pub fn clamp_selection(list_len: usize, selected_index: usize) -> usize {
+        if selected_index >= list_len {
+            return list_len.saturating_sub(1);
         }
         selected_index
     }

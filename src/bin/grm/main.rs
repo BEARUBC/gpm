@@ -45,7 +45,8 @@ impl App {
         let command_list = StatefulList::with_items(
             command_tree
                 .iter()
-                .flat_map(|tree| tree.flatten())
+                .enumerate()
+                .flat_map(|(i, tree)| tree.flatten(i))
                 .collect(),
         );
 
@@ -81,12 +82,21 @@ impl App {
                     .get_mut(index)
                     .unwrap()
                     .toggle_expansion(&mut self.command_tree);
+
                 self.command_list = StatefulList::with_items(
                     self.command_tree
                         .iter()
-                        .flat_map(|tree| tree.flatten())
+                        .enumerate()
+                        .flat_map(|(i, tree)| tree.flatten(i))
                         .collect(),
                 );
+
+                self.command_list
+                    .state
+                    .select(Some(FlattenedListNode::clamp_selection(
+                        self.command_list.items.len(),
+                        index,
+                    )))
             }),
             _ => {},
         }
