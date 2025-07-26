@@ -3,13 +3,18 @@ use prost::Message;
 use std::io::{self, Read, Write};
 use std::net::TcpStream;
 
-// TODO: @kumarpit edit this to keep a long lived connection
-
-pub struct GpmClient {}
+pub struct GpmClient {
+    stream: TcpStream,
+}
 
 impl GpmClient {
-    pub fn send(component: gpm::sgcp::Resource, task: i32) -> io::Result<()> {
-        let mut stream = TcpStream::connect("127.0.0.1:4760")?;
+    pub fn new() -> Self {
+        Self {
+            stream: TcpStream::connect("127.0.0.1:4760").unwrap(),
+        }
+    }
+
+    pub fn send(&mut self, component: gpm::sgcp::Resource, task: i32) -> io::Result<()> {
         let mut msg = gpm::sgcp::Request::default();
 
         msg.resource = component as i32;
@@ -27,12 +32,12 @@ impl GpmClient {
         buf.reserve(msg.encoded_len());
         msg.encode(&mut buf).unwrap();
 
-        stream.write(&msg.encoded_len().to_be_bytes())?;
-        stream.write(&buf)?;
-        stream.flush()?;
+        self.stream.write(&msg.encoded_len().to_be_bytes())?;
+        self.stream.write(&buf)?;
+        self.stream.flush()?;
 
         let mut buffer = [0; 512];
-        let bytes_read = stream.read(&mut buffer)?;
+        let bytes_read = self.stream.read(&mut buffer)?;
         let response = String::from_utf8_lossy(&buffer[..bytes_read]);
 
         Ok(())

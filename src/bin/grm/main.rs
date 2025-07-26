@@ -27,6 +27,7 @@ struct App {
     should_quit: bool,
     command_tree: Vec<NestedListNode>,
     command_list: StatefulList<FlattenedListNode>,
+    gpm_client: GpmClient,
 }
 
 impl App {
@@ -50,6 +51,7 @@ impl App {
             should_quit: false,
             command_tree,
             command_list,
+            gpm_client: GpmClient::new(),
         }
     }
 
@@ -92,11 +94,12 @@ impl App {
                     let root_node = self.command_tree.get(*root).unwrap();
                     let task_code = node.path.get(1).unwrap();
 
-                    GpmClient::send(
-                        gpm::sgcp::Resource::from_str_name(root_node.name.as_str()).unwrap(),
-                        *task_code as i32 + 1, // +1 since we don't render task 0
-                    )
-                    .unwrap();
+                    self.gpm_client
+                        .send(
+                            gpm::sgcp::Resource::from_str_name(root_node.name.as_str()).unwrap(),
+                            *task_code as i32 + 1, // +1 since we don't render task 0
+                        )
+                        .unwrap();
                 }
             }),
             _ => {},
