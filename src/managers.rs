@@ -3,9 +3,9 @@ pub mod emg;
 pub mod macros;
 pub mod maestro;
 
-use crate::request::TaskData;
 use crate::resources::Resource;
 use anyhow::Result;
+use gpm::sgcp::request::TaskData;
 use log::error;
 use log::info;
 use tokio::sync::mpsc::Receiver;

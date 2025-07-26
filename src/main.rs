@@ -10,7 +10,6 @@ use dispatchers::Dispatcher;
 use dispatchers::emg::EmgDispatcher;
 use dispatchers::gpio::GpioDispatcher;
 use dispatchers::tcp::TcpDispatcher;
-use gpm::import_sgcp;
 use log::*;
 use managers::HasMpscChannel;
 use managers::Manager;
@@ -26,9 +25,6 @@ use tokio::sync::mpsc::Sender;
 /// of the resource manager's MPSC channel
 type ManagerChannelMap = HashMap<String, Sender<ManagerChannelData>>;
 
-// Import protobuf definitions for task communication
-import_sgcp!();
-
 #[tokio::main]
 async fn main() {
     #[cfg(feature = "dev")]
@@ -37,9 +33,9 @@ async fn main() {
 
     // Initialize resource managers and their communication channels.
     let manager_channel_map = managers::macros::init_resource_managers! {
-        sgcp::Resource::Bms => Manager::<Bms>::new(),
-        sgcp::Resource::Emg => Manager::<Emg>::new(),
-        sgcp::Resource::Maestro => Manager::<Maestro>::new()
+        gpm::sgcp::Resource::Bms => Manager::<Bms>::new(),
+        gpm::sgcp::Resource::Emg => Manager::<Emg>::new(),
+        gpm::sgcp::Resource::Maestro => Manager::<Maestro>::new()
     };
 
     tokio::spawn(async {

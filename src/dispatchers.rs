@@ -5,9 +5,9 @@ pub mod tcp;
 
 use crate::ManagerChannelMap;
 use crate::managers::ManagerChannelData;
-use crate::sgcp;
 use anyhow::Error;
 use anyhow::Result;
+use gpm::sgcp;
 use log::info;
 use tokio::sync::oneshot;
 

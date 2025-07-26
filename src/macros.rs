@@ -1,27 +1,5 @@
 // A few handy macros used across the codebase
 
-/// Imports the protobuf generated code to enable de/serialization
-/// TODO: @krarpit this should really be a proc macro that reads from the
-///                sgcp folder
-#[macro_export]
-macro_rules! import_sgcp {
-    () => {
-        pub mod sgcp {
-            include!(concat!(env!("OUT_DIR"), "/sgcp.rs"));
-            pub mod bms {
-                include!(concat!(env!("OUT_DIR"), "/sgcp.bms.rs"));
-            }
-            pub mod emg {
-                include!(concat!(env!("OUT_DIR"), "/sgcp.emg.rs"));
-            }
-            pub mod maestro {
-                include!(concat!(env!("OUT_DIR"), "/sgcp.maestro.rs"));
-            }
-        }
-        use sgcp::*;
-    };
-}
-
 /// Simple wrapper to allow retrying on failures
 #[macro_export]
 macro_rules! retry {
@@ -60,5 +38,28 @@ macro_rules! todo {
 macro_rules! not_on_pi {
     () => {
         warn!("Not running on the Raspberry Pi -- skipping task")
+    };
+}
+
+/// Collects the values of a *C-like* struct into a vec. Note that this macro
+/// assumes the enum derives prost::enumeration (or implements TryFrom<i32>)
+#[macro_export]
+macro_rules! iterate_enum {
+    ($enum:path) => {{
+        std::iter::successors(Some(1), |&i| Some(i + 1))
+            .map_while(|i| <$enum as std::convert::TryFrom<i32>>::try_from(i).ok())
+            .collect::<Vec<$enum>>()
+    }};
+}
+
+/// Extract the task code names from the Task enum definitions generated for the
+/// resources
+#[macro_export]
+macro_rules! get_task_names {
+    ($enum:path) => {
+        iterate_enum!($enum)
+            .iter()
+            .map(|task| task.as_str_name().to_owned())
+            .collect::<Vec<String>>()
     };
 }

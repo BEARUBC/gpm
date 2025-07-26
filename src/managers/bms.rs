@@ -4,12 +4,12 @@ use crate::managers::ManagerChannelData;
 use crate::managers::ResourceManager;
 use crate::managers::TASK_SUCCESS;
 use crate::managers::macros::parse_channel_data;
-use crate::request::TaskData::BmsData;
 use crate::resources::bms::Bms;
-use crate::sgcp::bms::*;
 use anyhow::Error;
 use anyhow::Result;
 use anyhow::anyhow;
+use gpm::sgcp::bms::*;
+use gpm::sgcp::request::TaskData::BmsData;
 use gpm::todo;
 use log::*;
 
