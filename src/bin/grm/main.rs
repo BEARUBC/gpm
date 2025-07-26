@@ -130,7 +130,7 @@ impl App {
         frame.render_widget(right_panel_top, right_column_chunks[0]);
 
         let right_panel_bottom = Block::default()
-            .title("Response")
+            .title("History")
             .borders(Borders::ALL)
             .border_type(BorderType::Rounded);
         let inner_area = right_panel_bottom.inner(right_column_chunks[1]);
@@ -139,11 +139,15 @@ impl App {
 
         if !self.responses.is_empty() {
             frame.render_widget(
-                List::new(
-                    self.responses
-                        .iter()
-                        .map(|v| ListItem::new(v.message.as_str())),
-                ),
+                List::new(self.responses.iter().map(|v| {
+                    ListItem::new(format!(
+                        "[{}] {}: {}",
+                        //v.timestamp.to_rfc3339(),
+                        v.resource.as_str_name(),
+                        v.message.as_str(),
+                        v.task_code
+                    ))
+                })),
                 inner_area,
             );
         }
@@ -152,7 +156,7 @@ impl App {
             List::new(self.command_list.items.iter().map(|v| ListItem::new(v)))
                 .block(
                     Block::default()
-                        .title("GRASP Resources")
+                        .title("Resources")
                         .borders(Borders::all())
                         .border_type(BorderType::Rounded),
                 )
