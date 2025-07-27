@@ -3,12 +3,12 @@ use crate::managers::ManagerChannelData;
 use crate::managers::ResourceManager;
 use crate::managers::TASK_SUCCESS;
 use crate::managers::macros::parse_channel_data;
-use crate::request::TaskData::EmgData;
 use crate::resources::emg::Emg;
-use crate::sgcp::emg::*;
 use anyhow::Error;
 use anyhow::Result;
 use anyhow::anyhow;
+use gpm::sgcp::emg::*;
+use gpm::sgcp::request::TaskData::EmgData;
 use log::*;
 
 use rppal::gpio::{Gpio, OutputPin};

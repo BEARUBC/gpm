@@ -8,7 +8,7 @@ use crate::managers::ManagerChannelData;
 use super::GpioDispatcher;
 use crate::config::Config;
 use crate::dispatchers::Dispatcher;
-use crate::sgcp;
+use gpm::sgcp;
 use log::*;
 use rppal::gpio::{Gpio, InputPin};
 use std::time::Duration;

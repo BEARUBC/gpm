@@ -3,15 +3,15 @@ use crate::managers::Manager;
 use crate::managers::ManagerChannelData;
 use crate::managers::ResourceManager;
 use crate::managers::macros::parse_channel_data;
-use crate::not_on_pi;
-use crate::request::TaskData::MaestroData;
 use crate::resources::Resource;
-use crate::sgcp;
-use crate::sgcp::maestro::Task as MaestroTask;
-use crate::sgcp::maestro::*;
 use anyhow::Error;
 use anyhow::Result;
 use anyhow::anyhow;
+use gpm::not_on_pi;
+use gpm::sgcp;
+use gpm::sgcp::maestro::Task as MaestroTask;
+use gpm::sgcp::maestro::*;
+use gpm::sgcp::request::TaskData::MaestroData;
 use log::*;
 use raestro::maestro::{
     builder::Builder,
@@ -20,7 +20,7 @@ use raestro::maestro::{
 use std::time::Duration;
 
 pub struct Maestro {
-    controller: raestro::maestro::Maestro,
+    pub controller: raestro::maestro::Maestro,
 }
 
 impl Resource for Maestro {

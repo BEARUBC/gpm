@@ -1,17 +1,13 @@
 // All tasks operating on the EMG system live in this file
 use crate::config::Config;
+use crate::resources::Resource;
 use crate::resources::common::Adc;
 use anyhow::{Error, Result};
+use gpm::sgcp;
 use log::*;
-
-use crate::resources::Resource;
-use crate::sgcp;
-use rppal::gpio::OutputPin;
-use rppal::spi::Spi;
-use std::{io, thread, time::Duration};
-
 use rppal::gpio::{Gpio, OutputPin};
 use rppal::spi::{Bus, Mode, SlaveSelect, Spi};
+use std::{io, thread, time::Duration};
 
 pub struct Emg {
     pub adc: Adc,

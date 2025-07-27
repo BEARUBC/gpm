@@ -10,9 +10,9 @@ frame_prefix_length_in_bytes = 8
 pin = 2
 
 [dispatcher.emg]
-buffer_size: 100
-pause_duration_ms: 500
-sampling_speed_ms 1000
+buffer_size = 100
+pause_duration_ms = 500
+sampling_speed_ms = 1000
 cs_pin = 17
 
 [telemetry]
