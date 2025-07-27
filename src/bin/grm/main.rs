@@ -14,7 +14,7 @@ use crossterm::{
 use ratatui::{
     Frame, Terminal,
     backend::{Backend, CrosstermBackend},
-    layout::{Constraint, Layout, Margin},
+    layout::{Constraint, Layout, Margin, Rect},
     style::{Color, Modifier, Style, Stylize},
     text::{Line, Span, Text},
     widgets::{
@@ -158,7 +158,6 @@ impl App {
         frame.render_widget(right_panel_top, right_column_chunks[0]);
 
         // History Block
-
         let mut right_panel_bottom = Block::default()
             .title("History")
             .borders(Borders::ALL)
@@ -207,8 +206,11 @@ impl App {
             &mut self.responses.scrollbar_state,
         );
 
-        // Command List Block
-        let base_widget = List::from(&self.command_list)
+        self.render_command_list_block(frame, left_column);
+    }
+
+    fn render_command_list_block(&mut self, frame: &mut Frame, area: Rect) {
+        let command_list_widget = List::from(&self.command_list)
             .block(
                 Block::default()
                     .title("Resources")
@@ -228,9 +230,9 @@ impl App {
             );
 
         frame.render_stateful_widget(
-            base_widget,
-            left_column,
-            &mut self.command_list.flattened_list.state,
+            command_list_widget,
+            area,
+            self.command_list.get_list_state(),
         )
     }
 }

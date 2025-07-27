@@ -7,7 +7,7 @@ use super::{
     stateful_list::StatefulList,
 };
 use crate::client::{GpmClient, GpmResponse};
-use ratatui::widgets::{List, ListItem};
+use ratatui::widgets::{List, ListItem, ListState};
 
 pub struct CommandList {
     tree: Vec<NestedListNode>,
@@ -38,6 +38,10 @@ impl CommandList {
             flattened_list,
             gpm_client: GpmClient::new(),
         }
+    }
+
+    pub fn get_list_state(&mut self) -> &mut ListState {
+        &mut self.flattened_list.state
     }
 
     /// Handles `<enter>` clicked on a selected in the commands list. If the item is a root node
@@ -78,7 +82,7 @@ impl CommandList {
         })
     }
 
-    /* Delegates */
+    // Delegates
 
     pub fn next(&mut self) {
         self.flattened_list.next();
