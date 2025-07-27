@@ -2,16 +2,17 @@
 
 use super::{
     nested_list::{FlattenedListNode, NestedListNode},
-    // Ratatui's native List doesn't support nested items, so we manually flatten the tree
-    // structure for rendering
     stateful_list::StatefulList,
 };
 use crate::client::{GpmClient, GpmResponse};
 use ratatui::widgets::{List, ListItem, ListState};
 
 pub struct CommandList {
-    tree: Vec<NestedListNode>,                           // Source of truth
-    pub flattened_list: StatefulList<FlattenedListNode>, // For rendering
+    /// Source of truth for the command list
+    tree: Vec<NestedListNode>,
+    /// Ratatui's native List doesn't support nested items, so we manually flatten the tree
+    /// structure for rendering
+    pub flattened_list: StatefulList<FlattenedListNode>,
     gpm_client: GpmClient,
 }
 
@@ -92,6 +93,7 @@ impl CommandList {
     }
 }
 
+// Generates a Ratatui list widget from the command list
 impl<'a, 'b> From<&'a CommandList> for List<'b> {
     fn from(value: &CommandList) -> Self {
         List::new(

@@ -28,8 +28,11 @@ use std::{
 };
 use widgets::{command_list::CommandList, stateful_list::StatefulList};
 
+/// The primary, user-selectable blocks in the TUI
 enum GrmBlock {
+    /// Renders GPM Command list
     CommandList,
+    /// Renders command history
     History,
 }
 
@@ -37,7 +40,7 @@ struct App {
     should_quit: bool,
     command_list: CommandList,
     responses: StatefulList<GpmResponse>,
-    current_block: GrmBlock,
+    selected_block: GrmBlock,
 }
 
 impl App {
@@ -46,26 +49,11 @@ impl App {
             should_quit: false,
             command_list: CommandList::init(),
             responses: StatefulList::new(),
-            current_block: GrmBlock::CommandList,
+            selected_block: GrmBlock::CommandList,
         }
     }
 
-    fn get_palette(resource: gpm::sgcp::Resource) -> Color {
-        match resource {
-            gpm::sgcp::Resource::UndefinedComponent => Color::Red,
-            gpm::sgcp::Resource::Bms => Color::LightGreen,
-            gpm::sgcp::Resource::Emg => Color::DarkGray,
-            gpm::sgcp::Resource::Maestro => Color::Blue,
-        }
-    }
-
-    fn toggle_selected_block(&mut self) {
-        match self.current_block {
-            GrmBlock::CommandList => self.current_block = GrmBlock::History,
-            GrmBlock::History => self.current_block = GrmBlock::CommandList,
-        }
-    }
-
+    /// Main app loop
     fn run<B: Backend>(&mut self, terminal: &mut Terminal<B>) -> io::Result<()> {
         loop {
             terminal.draw(|f| self.render(f))?;
@@ -80,20 +68,28 @@ impl App {
         }
     }
 
+    //////////////////////////////////
+    /// Event Handling
+    //////////////////////////////////
+
     fn handle_key_events(&mut self, key: KeyEvent) {
         match key.code {
             KeyCode::Char('q') => self.should_quit = true,
-            KeyCode::Down | KeyCode::Char('j') => match self.current_block {
+
+            KeyCode::Down | KeyCode::Char('j') => match self.selected_block {
                 GrmBlock::History => self.responses.next(),
                 GrmBlock::CommandList => self.command_list.next(),
             },
-            KeyCode::Up | KeyCode::Char('k') => match self.current_block {
+
+            KeyCode::Up | KeyCode::Char('k') => match self.selected_block {
                 GrmBlock::History => self.responses.previous(),
                 GrmBlock::CommandList => self.command_list.previous(),
             },
+
             KeyCode::Char('t') => self.toggle_selected_block(),
+
             KeyCode::Enter => {
-                if let GrmBlock::CommandList = self.current_block {
+                if let GrmBlock::CommandList = self.selected_block {
                     match self.command_list.handle_select() {
                         Some(response) => {
                             self.responses.items.push(response);
@@ -114,63 +110,54 @@ impl App {
         }
     }
 
+    /// Switch between the two main blocks -- History and Command List
+    fn toggle_selected_block(&mut self) {
+        match self.selected_block {
+            GrmBlock::CommandList => self.selected_block = GrmBlock::History,
+            GrmBlock::History => self.selected_block = GrmBlock::CommandList,
+        }
+    }
+
+    //////////////////////////////////
+    /// Rendering
+    //////////////////////////////////
+
     fn render(&mut self, frame: &mut Frame) {
-        let super_chunks =
+        let parent_chunks =
             Layout::vertical([Constraint::Min(0), Constraint::Percentage(5)]).split(frame.area());
 
-        // Footer
-        let footer_panel = Block::default()
-            .borders(Borders::ALL)
-            .border_type(BorderType::Rounded);
-
-        frame.render_widget(
-            Line::raw(
-                "<↑>/<k> <↓>/<j> move up/down | <enter> run command | <t> toggle tabs | <q> quit",
-            )
-            .style(Style::default().fg(Color::Cyan)),
-            footer_panel.inner(super_chunks[1]),
-        );
-
-        // Main content
+        let main_area = parent_chunks[0];
+        let footer_area = parent_chunks[1];
 
         let main_chunks =
             Layout::horizontal([Constraint::Percentage(30), Constraint::Percentage(70)])
-                .split(super_chunks[0]);
+                .split(main_area);
 
-        let left_column = main_chunks[0];
+        let left_column_area = main_chunks[0];
+
         let right_column_chunks =
             Layout::vertical([Constraint::Length(3), Constraint::Min(0)]).split(main_chunks[1]);
+        let top_right_column_area = right_column_chunks[0];
+        let bottom_right_column_area = right_column_chunks[1];
 
-        // Status Block
+        self.render_command_list_block(frame, left_column_area);
+        self.render_status_block(frame, top_right_column_area);
+        self.render_history_block(frame, bottom_right_column_area);
+        self.render_footer_block(frame, footer_area);
+    }
 
-        let right_panel_top = Block::default()
-            .title("Status")
-            .borders(Borders::ALL)
-            .border_type(BorderType::Rounded)
-            .padding(Padding::new(1, 0, 0, 0));
-
-        frame.render_widget(
-            Paragraph::new("Connected to 127.0.0.1:4760")
-                .style(Style::default().fg(Color::LightGreen)),
-            right_panel_top.inner(right_column_chunks[0]),
-        );
-
-        frame.render_widget(right_panel_top, right_column_chunks[0]);
-
-        // History Block
+    fn render_history_block(&mut self, frame: &mut Frame, area: Rect) {
         let mut right_panel_bottom = Block::default()
             .title("History")
             .borders(Borders::ALL)
             .border_type(BorderType::Rounded)
             .padding(Padding::new(1, 1, 0, 0));
 
-        let inner_area = right_panel_bottom.inner(right_column_chunks[1]);
+        let inner_area = right_panel_bottom.inner(area);
 
-        if let GrmBlock::History = self.current_block {
+        if let GrmBlock::History = self.selected_block {
             right_panel_bottom = right_panel_bottom.border_style(Style::default().bold());
         }
-
-        frame.render_widget(right_panel_bottom, right_column_chunks[1]);
 
         if !self.responses.items.is_empty() {
             let base_widget = List::new(self.responses.items.iter().map(|v| {
@@ -199,16 +186,49 @@ impl App {
 
         frame.render_stateful_widget(
             scrollbar,
-            right_column_chunks[1].inner(Margin {
+            area.inner(Margin {
                 vertical: 1,
                 horizontal: 0,
             }),
             &mut self.responses.scrollbar_state,
         );
 
-        self.render_command_list_block(frame, left_column);
+        frame.render_widget(right_panel_bottom, area);
     }
 
+    /// Text displaying the connected server address
+    fn render_status_block(&mut self, frame: &mut Frame, area: Rect) {
+        let panel = Block::default()
+            .title("Status")
+            .borders(Borders::ALL)
+            .border_type(BorderType::Rounded)
+            .padding(Padding::new(1, 0, 0, 0));
+
+        frame.render_widget(
+            Paragraph::new("Connected to 127.0.0.1:4760")
+                .style(Style::default().fg(Color::LightGreen)),
+            panel.inner(area),
+        );
+
+        frame.render_widget(panel, area);
+    }
+
+    /// Includes minimal help text
+    fn render_footer_block(&mut self, frame: &mut Frame, area: Rect) {
+        let panel = Block::default()
+            .borders(Borders::ALL)
+            .border_type(BorderType::Rounded);
+
+        frame.render_widget(
+            Line::raw(
+                "<↑>/<k> <↓>/<j> move up/down | <enter> run command | <t> toggle tabs | <q> quit",
+            )
+            .style(Style::default().fg(Color::Cyan)),
+            panel.inner(area),
+        );
+    }
+
+    /// Renders the Command list in the left column
     fn render_command_list_block(&mut self, frame: &mut Frame, area: Rect) {
         let command_list_widget = List::from(&self.command_list)
             .block(
@@ -217,7 +237,7 @@ impl App {
                     .borders(Borders::all())
                     .border_type(BorderType::Rounded)
                     .padding(Padding::new(1, 1, 0, 0))
-                    .border_style(if let GrmBlock::CommandList = self.current_block {
+                    .border_style(if let GrmBlock::CommandList = self.selected_block {
                         Style::default().bold()
                     } else {
                         Style::default()
@@ -234,6 +254,16 @@ impl App {
             area,
             self.command_list.get_list_state(),
         )
+    }
+
+    /// History logs for each resource get their own color
+    fn get_palette(resource: gpm::sgcp::Resource) -> Color {
+        match resource {
+            gpm::sgcp::Resource::UndefinedComponent => Color::Red,
+            gpm::sgcp::Resource::Bms => Color::LightGreen,
+            gpm::sgcp::Resource::Emg => Color::DarkGray,
+            gpm::sgcp::Resource::Maestro => Color::Blue,
+        }
     }
 }
 
