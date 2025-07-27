@@ -77,6 +77,114 @@ impl App {
         self.data_ch1.retain(|(t, _)| *t >= self.window[0]);
         self.data_ch2.retain(|(t, _)| *t >= self.window[0]);
     }
+
+    //////////////////////////////////
+    /// Rendering
+    //////////////////////////////////
+
+    /// Renders the user interface widgets.
+    fn render(&mut self, f: &mut Frame) {
+        let chunks = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints([Constraint::Percentage(50), Constraint::Percentage(50)])
+            .split(f.area());
+
+        let x_axis = Self::create_x_axis(self.window);
+
+        // Render Chart 1
+        let y_axis1 = Self::create_y_axis(&self.data_ch1);
+        let chart1 = Self::draw_channel_chart(
+            "Channel 1 EMG Data",
+            &self.data_ch1,
+            CHANNEL_1_COLOR,
+            x_axis.clone(),
+            y_axis1,
+        );
+        f.render_widget(chart1, chunks[0]);
+
+        // Render Chart 2
+        let y_axis2 = Self::create_y_axis(&self.data_ch2);
+        let chart2 = Self::draw_channel_chart(
+            "Channel 2 EMG Data",
+            &self.data_ch2,
+            CHANNEL_2_COLOR,
+            x_axis,
+            y_axis2,
+        );
+        f.render_widget(chart2, chunks[1]);
+    }
+
+    /// Creates a configured X-axis based on the current time window.
+    fn create_x_axis(window: [f64; 2]) -> Axis<'static> {
+        let labels: Vec<Span> = window
+            .iter()
+            .map(|&t| {
+                let dt = DateTime::from_timestamp_millis(t as i64)
+                    .unwrap_or_default()
+                    .with_timezone(&Local);
+                Span::from(dt.format("%H:%M:%S").to_string())
+            })
+            .collect();
+
+        Axis::default()
+            .title("Time")
+            .style(Style::default().gray())
+            .bounds(window)
+            .labels(labels)
+    }
+
+    /// Creates a dynamically scaled Y-axis based on the provided data.
+    fn create_y_axis(data: &[(f64, f64)]) -> Axis<'static> {
+        let (min, max) = data
+            .iter()
+            .fold((f64::INFINITY, f64::NEG_INFINITY), |(min, max), &(_, v)| {
+                (min.min(v), max.max(v))
+            });
+
+        let (min, max) = if min.is_infinite() {
+            (0.0, 100.0)
+        } else {
+            (min, max)
+        };
+
+        let bounds = [min - Y_AXIS_PADDING, max + Y_AXIS_PADDING];
+        let labels = vec![
+            Span::from(format!("{:.1}", min)),
+            Span::from(format!("{:.1}", max)),
+        ];
+
+        Axis::default()
+            .title("Value")
+            .style(Style::default().gray())
+            .bounds(bounds)
+            .labels(labels)
+    }
+
+    /// Draws a single channel chart
+    fn draw_channel_chart<'a>(
+        title: &'a str,
+        data: &'a [(f64, f64)],
+        color: Color,
+        x_axis: Axis<'a>,
+        y_axis: Axis<'a>,
+    ) -> Chart<'a> {
+        let dataset = Dataset::default()
+            .name(title)
+            .marker(symbols::Marker::HalfBlock)
+            .graph_type(GraphType::Line)
+            .style(Style::default().fg(color))
+            .data(data);
+
+        Chart::new(vec![dataset])
+            .block(
+                Block::default()
+                    .title(title)
+                    .borders(Borders::ALL)
+                    .style(Style::default().bg(Color::Reset)),
+            )
+            .x_axis(x_axis)
+            .y_axis(y_axis)
+    }
 }
 
 #[tokio::main]
@@ -111,7 +219,7 @@ async fn run_ui_loop<B: Backend>(
             app.add_data(point);
         }
 
-        terminal.draw(|f| ui(f, &mut app))?;
+        terminal.draw(|f| app.render(f))?;
 
         if event::poll(tick_rate)? {
             if let Event::Key(key) = event::read()? {
@@ -121,112 +229,4 @@ async fn run_ui_loop<B: Backend>(
             }
         }
     }
-}
-
-//////////////////////////////////
-/// Rendering
-//////////////////////////////////
-
-/// Renders the user interface widgets.
-fn ui(f: &mut Frame, app: &mut App) {
-    let chunks = Layout::default()
-        .direction(Direction::Vertical)
-        .constraints([Constraint::Percentage(50), Constraint::Percentage(50)])
-        .split(f.area());
-
-    let x_axis = create_x_axis(app.window);
-
-    // Render Chart 1
-    let y_axis1 = create_y_axis(&app.data_ch1);
-    let chart1 = draw_channel_chart(
-        "Channel 1 EMG Data",
-        &app.data_ch1,
-        CHANNEL_1_COLOR,
-        x_axis.clone(),
-        y_axis1,
-    );
-    f.render_widget(chart1, chunks[0]);
-
-    // Render Chart 2
-    let y_axis2 = create_y_axis(&app.data_ch2);
-    let chart2 = draw_channel_chart(
-        "Channel 2 EMG Data",
-        &app.data_ch2,
-        CHANNEL_2_COLOR,
-        x_axis,
-        y_axis2,
-    );
-    f.render_widget(chart2, chunks[1]);
-}
-
-/// Creates a configured X-axis based on the current time window.
-fn create_x_axis(window: [f64; 2]) -> Axis<'static> {
-    let labels: Vec<Span> = window
-        .iter()
-        .map(|&t| {
-            let dt = DateTime::from_timestamp_millis(t as i64)
-                .unwrap_or_default()
-                .with_timezone(&Local);
-            Span::from(dt.format("%H:%M:%S").to_string())
-        })
-        .collect();
-
-    Axis::default()
-        .title("Time")
-        .style(Style::default().gray())
-        .bounds(window)
-        .labels(labels)
-}
-
-/// Creates a dynamically scaled Y-axis based on the provided data.
-fn create_y_axis(data: &[(f64, f64)]) -> Axis<'static> {
-    let (min, max) = data
-        .iter()
-        .fold((f64::INFINITY, f64::NEG_INFINITY), |(min, max), &(_, v)| {
-            (min.min(v), max.max(v))
-        });
-
-    let (min, max) = if min.is_infinite() {
-        (0.0, 100.0)
-    } else {
-        (min, max)
-    };
-
-    let bounds = [min - Y_AXIS_PADDING, max + Y_AXIS_PADDING];
-    let labels = vec![
-        Span::from(format!("{:.1}", min)),
-        Span::from(format!("{:.1}", max)),
-    ];
-
-    Axis::default()
-        .title("Value")
-        .style(Style::default().gray())
-        .bounds(bounds)
-        .labels(labels)
-}
-
-/// Draws a single channel chart
-fn draw_channel_chart<'a>(
-    title: &'a str,
-    data: &'a [(f64, f64)],
-    color: Color,
-    x_axis: Axis<'a>,
-    y_axis: Axis<'a>,
-) -> Chart<'a> {
-    let dataset = Dataset::default()
-        .name(title)
-        .marker(symbols::Marker::HalfBlock)
-        .graph_type(GraphType::Line)
-        .style(Style::default().fg(color))
-        .data(data);
-
-    Chart::new(vec![dataset])
-        .block(
-            Block::default()
-                .title(title)
-                .borders(Borders::ALL)
-                .style(Style::default().bg(Color::Reset)),
-        )
-        .x_axis(x_axis)
-        .y_axis(y_axis)
 }
