@@ -5,7 +5,7 @@ mod client;
 mod utils;
 mod widgets;
 
-use client::{GpmClient, GpmResponse};
+use client::GpmResponse;
 use crossterm::{
     event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyEvent},
     execute,
@@ -15,7 +15,7 @@ use ratatui::{
     Frame, Terminal,
     backend::{Backend, CrosstermBackend},
     layout::{Constraint, Layout, Margin},
-    style::{Color, Modifier, Style, Styled, Stylize},
+    style::{Color, Modifier, Style, Stylize},
     text::{Line, Span, Text},
     widgets::{
         Block, BorderType, Borders, List, ListItem, Padding, Paragraph, Scrollbar,
@@ -26,10 +26,7 @@ use std::{
     error::Error,
     io::{self},
 };
-use widgets::{
-    nested_list::{FlattenedListNode, NestedListNode},
-    stateful_list::StatefulList,
-};
+use widgets::{command_list::CommandList, stateful_list::StatefulList};
 
 enum GrmBlock {
     CommandList,
@@ -38,35 +35,16 @@ enum GrmBlock {
 
 struct App {
     should_quit: bool,
-    command_tree: Vec<NestedListNode>,
-    command_list: StatefulList<FlattenedListNode>,
-    gpm_client: GpmClient,
+    command_list: CommandList,
     responses: StatefulList<GpmResponse>,
     current_block: GrmBlock,
 }
 
 impl App {
     fn new() -> Self {
-        let command_tree: Vec<NestedListNode> = gpm::enum_values!(gpm::sgcp::Resource)
-            .iter()
-            .map(|resource| {
-                NestedListNode::with_children(
-                    resource.as_str_name(),
-                    gpm::get_tasks_for_resource(resource)
-                        .iter()
-                        .map(|task_name| NestedListNode::new(task_name))
-                        .collect(),
-                )
-            })
-            .collect();
-
-        let command_list = StatefulList::with_items(NestedListNode::flatten(&command_tree));
-
         Self {
             should_quit: false,
-            command_tree,
-            command_list,
-            gpm_client: GpmClient::new(),
+            command_list: CommandList::init(),
             responses: StatefulList::new(),
             current_block: GrmBlock::CommandList,
         }
@@ -116,35 +94,8 @@ impl App {
             KeyCode::Char('t') => self.toggle_selected_block(),
             KeyCode::Enter => {
                 if let GrmBlock::CommandList = self.current_block {
-                    self.command_list.state.selected().map_or((), |index| {
-                        let node = self.command_list.items.get_mut(index).unwrap();
-
-                        if node.is_root() {
-                            node.toggle_expansion(&mut self.command_tree);
-
-                            self.command_list = StatefulList::with_items(NestedListNode::flatten(
-                                &self.command_tree,
-                            ));
-
-                            self.command_list.state.select(Some(
-                                FlattenedListNode::clamp_selection(
-                                    self.command_list.items.len(),
-                                    index,
-                                ),
-                            ))
-                        } else {
-                            let root = node.path.get(0).unwrap();
-                            let root_node = self.command_tree.get(*root).unwrap();
-                            let task_code = node.path.get(1).unwrap();
-
-                            let response = self
-                                .gpm_client
-                                .send(
-                                    gpm::sgcp::Resource::from_str_name(root_node.name.as_str())
-                                        .unwrap(),
-                                    *task_code as i32 + 1, // +1 since we don't render task 0
-                                )
-                                .unwrap();
+                    match self.command_list.handle_select() {
+                        Some(response) => {
                             self.responses.items.push(response);
                             self.responses
                                 .state
@@ -154,8 +105,9 @@ impl App {
                                 .responses
                                 .scrollbar_state
                                 .position(self.responses.items.len() - 1);
-                        }
-                    })
+                        },
+                        None => (),
+                    }
                 }
             },
             _ => {},
@@ -256,8 +208,7 @@ impl App {
         );
 
         // Command List Block
-
-        let base_widget = List::new(self.command_list.items.iter().map(|v| ListItem::new(v)))
+        let base_widget = List::from(&self.command_list)
             .block(
                 Block::default()
                     .title("Resources")
@@ -276,7 +227,11 @@ impl App {
                     .add_modifier(Modifier::BOLD),
             );
 
-        frame.render_stateful_widget(base_widget, left_column, &mut self.command_list.state)
+        frame.render_stateful_widget(
+            base_widget,
+            left_column,
+            &mut self.command_list.flattened_list.state,
+        )
     }
 }
 

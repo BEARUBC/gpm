@@ -11,7 +11,8 @@ use ratatui::widgets::{List, ListItem};
 
 pub struct CommandList {
     tree: Vec<NestedListNode>,
-    flattened_list: StatefulList<FlattenedListNode>,
+    // TODO: port rendering into this widget
+    pub flattened_list: StatefulList<FlattenedListNode>,
     gpm_client: GpmClient,
 }
 
@@ -76,10 +77,20 @@ impl CommandList {
             }
         })
     }
+
+    /* Delegates */
+
+    pub fn next(&mut self) {
+        self.flattened_list.next();
+    }
+
+    pub fn previous(&mut self) {
+        self.flattened_list.previous();
+    }
 }
 
-impl<'a> From<CommandList> for List<'a> {
-    fn from(value: CommandList) -> Self {
+impl<'a, 'b> From<&'a CommandList> for List<'b> {
+    fn from(value: &CommandList) -> Self {
         List::new(
             value
                 .flattened_list
