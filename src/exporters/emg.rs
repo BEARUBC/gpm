@@ -1,79 +1,80 @@
-//! Tiny TCP server exposing EMG data
+//! Tiny EMG Data TCP Exporter
 
-use crate::{config::Config, resources::emg::Emg};
-use log::{error, info};
+use anyhow::{Context, Result};
+use log::{error, info, warn};
 use serde_json::to_string;
+use std::time::Duration;
 use tokio::{
-    io::AsyncWriteExt,
+    io::{AsyncWriteExt, BufWriter},
     net::{TcpListener, TcpStream},
-    time::{Duration, interval},
+    time::interval,
 };
 
-pub struct Exporter {}
+use crate::resources::emg::Emg;
+
+pub struct Exporter {
+    address: String,
+    interval_duration: Duration,
+}
 
 impl Exporter {
-    pub fn new() -> Self {
-        Exporter {}
-    }
-
-    pub async fn init(&self) {
-        let telemetry_emg_config = Config::global()
-            .telemetry
-            .as_ref()
-            .unwrap()
-            .emg
-            .as_ref()
-            .unwrap();
-
-        let listener = TcpListener::bind(telemetry_emg_config.address.clone())
-            .await
-            .unwrap();
-
-        info!(
-            "Emg exporter listening on {:?}",
-            telemetry_emg_config.address
-        );
-
-        loop {
-            let (socket, _) = listener.accept().await.unwrap();
-            info!("Accepted connection at EMG exporter server");
-            tokio::spawn(Self::handle_client(socket));
+    pub fn new(address: String, interval_ms: u64) -> Self {
+        Exporter {
+            address,
+            interval_duration: Duration::from_millis(interval_ms),
         }
     }
 
-    async fn handle_client(socket: TcpStream) {
-        let (_reader, mut writer) = socket.into_split();
-        let mut interval = interval(Duration::from_millis(1000));
+    /// Main server loop
+    pub async fn run(self) -> Result<()> {
+        let listener = TcpListener::bind(&self.address)
+            .await
+            .with_context(|| format!("Failed to bind TCP listener to {}", self.address))?;
+
+        info!("EMG exporter listening on {}", self.address);
 
         loop {
-            interval.tick().await;
-
-            let emg_data = Emg::read_adc();
-            let json_string = match to_string(&emg_data) {
-                Ok(s) => s,
+            let (stream, client_addr) = match listener.accept().await {
+                Ok(connection) => connection,
                 Err(e) => {
-                    error!("Failed to serialize EMG data: {}", e);
+                    error!("Failed to accept connection: {:?}", e);
                     continue;
                 },
             };
 
-            // Send data followed by a newline to act as a delimiter
-            if let Err(e) = writer
-                .write_all(format!("{}\n", json_string).as_bytes())
-                .await
-            {
-                error!(
-                    "Failed to write to socket: {}. Client likely disconnected.",
-                    e
-                );
-                break; // Client disconnected
-            }
-
-            if let Err(e) = writer.flush().await {
-                error!("Failed to flush socket: {}. Client likely disconnected.", e);
-                break;
-            }
+            info!("Accepted new connection from: {}", client_addr);
+            tokio::spawn(handle_connection(stream, self.interval_duration));
         }
-        info!("Client disconnected.");
     }
+}
+
+/// Handles an individual client connection.
+async fn handle_connection(stream: TcpStream, interval_duration: Duration) {
+    let mut writer = BufWriter::new(stream);
+    let mut interval = interval(interval_duration);
+
+    loop {
+        interval.tick().await;
+
+        let json_string = match to_string(&Emg::read_adc()) {
+            Ok(s) => s,
+            Err(e) => {
+                warn!("Failed to serialize EMG data: {}", e);
+                continue;
+            },
+        };
+
+        let payload = format!("{}\n", json_string);
+
+        if let Err(e) = writer.write_all(payload.as_bytes()).await {
+            info!("Connection closed during write: {}", e);
+            break;
+        }
+
+        if let Err(e) = writer.flush().await {
+            info!("Connection closed during flush: {}", e);
+            break;
+        }
+    }
+    info!("Client disconnected.");
 }

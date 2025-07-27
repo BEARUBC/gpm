@@ -1,25 +1,42 @@
-use chrono::{DateTime, Utc};
-use crossterm::{
-    event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode},
-    execute,
-    terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
-};
+//! Real-time EMG Data Visualizer
+
+mod client;
+mod error;
+mod tui;
+
+use chrono::{DateTime, Local, Utc};
+use client::EmgExporterClient;
+use crossterm::event::{self, Event, KeyCode};
 use ratatui::{
     prelude::*,
     widgets::{Axis, Block, Borders, Chart, Dataset, GraphType},
 };
 use serde::Deserialize;
-use std::{
-    error::Error,
-    io,
-    sync::{Arc, Mutex},
-    thread,
-    time::Duration,
-};
-use tokio::io::{AsyncBufReadExt, BufReader};
-use tokio::net::TcpStream;
-use tokio::runtime::Runtime;
+use std::time::Duration;
+use tokio::sync::mpsc;
 
+//////////////////////////////////
+/// Config
+//////////////////////////////////
+
+/// The address of the TCP server providing EMG data.
+const SERVER_ADDR: &str = "localhost:9998";
+/// The time window for the charts, in milliseconds.
+const TIME_WINDOW_MS: f64 = 30_000.0;
+/// The polling rate for UI events, in milliseconds.
+const EVENT_POLL_RATE_MS: u64 = 50;
+/// The buffer size for the MPSC channel.
+const CHANNEL_CAPACITY: usize = 100;
+/// Color for the first data channel.
+const CHANNEL_1_COLOR: Color = Color::Cyan;
+/// Color for the second data channel.
+const CHANNEL_2_COLOR: Color = Color::Magenta;
+/// Padding added to the Y-axis bounds for better visualization.
+const Y_AXIS_PADDING: f64 = 10.0;
+
+type AppResult<T> = Result<T, error::AppError>;
+
+/// Represents a single data point received from the server.
 #[derive(Deserialize, Debug, Clone, Copy)]
 struct DataPoint {
     channel_0: f64,
@@ -27,88 +44,76 @@ struct DataPoint {
     timestamp: u64, // Unix timestamp in milliseconds
 }
 
+#[derive(Debug)]
 struct App {
+    /// Data for the first channel, stored as `(timestamp, value)`.
     data_ch1: Vec<(f64, f64)>,
+    /// Data for the second channel, stored as `(timestamp, value)`.
     data_ch2: Vec<(f64, f64)>,
+    /// The visible time window for the x-axis, as `[start, end]`.
     window: [f64; 2],
 }
 
 impl App {
+    /// Creates a new `App` instance with an initial time window.
     fn new() -> Self {
         let now = Utc::now().timestamp_millis() as f64;
         Self {
             data_ch1: Vec::new(),
             data_ch2: Vec::new(),
-            // Display the last 30 seconds of data
-            window: [now - 30_000.0, now],
+            window: [now - TIME_WINDOW_MS, now],
         }
     }
 
+    /// Adds a new data point to the state and updates the time window.
     fn add_data(&mut self, point: DataPoint) {
         let timestamp_f64 = point.timestamp as f64;
         self.data_ch1.push((timestamp_f64, point.channel_0));
         self.data_ch2.push((timestamp_f64, point.channel_1));
 
         self.window[1] = timestamp_f64;
-        self.window[0] = timestamp_f64 - 30_000.0;
+        self.window[0] = timestamp_f64 - TIME_WINDOW_MS;
 
         self.data_ch1.retain(|(t, _)| *t >= self.window[0]);
         self.data_ch2.retain(|(t, _)| *t >= self.window[0]);
     }
 }
 
-fn main() -> Result<(), Box<dyn Error>> {
-    enable_raw_mode()?;
-    let mut stdout = io::stdout();
-    execute!(stdout, EnterAlternateScreen, EnableMouseCapture)?;
-    let backend = CrosstermBackend::new(stdout);
-    let mut terminal = Terminal::new(backend)?;
+#[tokio::main]
+async fn main() -> AppResult<()> {
+    let (tx, rx) = mpsc::channel::<DataPoint>(CHANNEL_CAPACITY);
+    let client = EmgExporterClient::new(tx);
 
-    let app = Arc::new(Mutex::new(App::new()));
-    let app_clone = app.clone();
-
-    thread::spawn(move || {
-        let rt = Runtime::new().unwrap();
-        rt.block_on(async {
-            if let Ok(stream) = TcpStream::connect("localhost:9998").await {
-                let mut reader = BufReader::new(stream);
-                let mut line = String::new();
-                while reader.read_line(&mut line).await.unwrap_or(0) > 0 {
-                    match serde_json::from_str::<DataPoint>(&line) {
-                        Ok(point) => app_clone.lock().unwrap().add_data(point),
-                        Err(err) => println!("{:?}", err),
-                    }
-                    line.clear();
-                }
-            } else {
-                // TODO: @kumarpit error handling
-            }
-        });
+    // Spawn the network task to produce data.
+    tokio::spawn(async move {
+        if let Err(e) = client.listen_for_data().await {
+            eprintln!("Network task failed: {}", e);
+        }
     });
 
-    let res = run_app(&mut terminal, app);
-
-    disable_raw_mode()?;
-    execute!(
-        terminal.backend_mut(),
-        LeaveAlternateScreen,
-        DisableMouseCapture
-    )?;
-    terminal.show_cursor()?;
-
-    if let Err(err) = res {
-        println!("{err:?}");
-    }
+    let mut tui = tui::Tui::new()?;
+    run_ui_loop(&mut tui.terminal, rx).await?;
 
     Ok(())
 }
 
-fn run_app<B: Backend>(terminal: &mut Terminal<B>, app: Arc<Mutex<App>>) -> io::Result<()> {
-    loop {
-        terminal.draw(|f| ui(f, &mut app.lock().unwrap()))?;
+async fn run_ui_loop<B: Backend>(
+    terminal: &mut Terminal<B>,
+    mut rx: mpsc::Receiver<DataPoint>,
+) -> AppResult<()> {
+    let tick_rate = Duration::from_millis(EVENT_POLL_RATE_MS);
+    let mut app = App::new();
 
-        // Exit on 'q'
-        if event::poll(Duration::from_millis(50))? {
+    loop {
+        // QUESTION: Consumes faster than the network bound producer -- so it should never be stuck in a
+        // infiinite loop...maybe?
+        while let Ok(point) = rx.try_recv() {
+            app.add_data(point);
+        }
+
+        terminal.draw(|f| ui(f, &mut app))?;
+
+        if event::poll(tick_rate)? {
             if let Event::Key(key) = event::read()? {
                 if key.code == KeyCode::Char('q') {
                     return Ok(());
@@ -118,104 +123,110 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>, app: Arc<Mutex<App>>) -> io::
     }
 }
 
+//////////////////////////////////
+/// Rendering
+//////////////////////////////////
+
+/// Renders the user interface widgets.
 fn ui(f: &mut Frame, app: &mut App) {
     let chunks = Layout::default()
         .direction(Direction::Vertical)
-        .constraints([Constraint::Percentage(50), Constraint::Percentage(50)].as_ref())
-        .split(f.size());
+        .constraints([Constraint::Percentage(50), Constraint::Percentage(50)])
+        .split(f.area());
 
-    // --- Chart 1 ---
-    let dataset_ch1 = Dataset::default()
-        .name("Channel 1")
-        .marker(symbols::Marker::Braille)
-        .graph_type(GraphType::Line)
-        .style(Style::default().cyan())
-        .data(&app.data_ch1);
+    let x_axis = create_x_axis(app.window);
 
-    let labels: Vec<Span> = app
-        .window
+    // Render Chart 1
+    let y_axis1 = create_y_axis(&app.data_ch1);
+    let chart1 = draw_channel_chart(
+        "Channel 1 EMG Data",
+        &app.data_ch1,
+        CHANNEL_1_COLOR,
+        x_axis.clone(),
+        y_axis1,
+    );
+    f.render_widget(chart1, chunks[0]);
+
+    // Render Chart 2
+    let y_axis2 = create_y_axis(&app.data_ch2);
+    let chart2 = draw_channel_chart(
+        "Channel 2 EMG Data",
+        &app.data_ch2,
+        CHANNEL_2_COLOR,
+        x_axis,
+        y_axis2,
+    );
+    f.render_widget(chart2, chunks[1]);
+}
+
+/// Creates a configured X-axis based on the current time window.
+fn create_x_axis(window: [f64; 2]) -> Axis<'static> {
+    let labels: Vec<Span> = window
         .iter()
-        .map(|t: &f64| {
-            let dt: DateTime<Utc> =
-                chrono::DateTime::from_timestamp_millis(*t as i64).unwrap_or_default();
+        .map(|&t| {
+            let dt = DateTime::from_timestamp_millis(t as i64)
+                .unwrap_or_default()
+                .with_timezone(&Local);
             Span::from(dt.format("%H:%M:%S").to_string())
         })
         .collect();
 
-    let x_axis: Axis = Axis::default()
+    Axis::default()
         .title("Time")
         .style(Style::default().gray())
-        .bounds(app.window)
-        .labels(labels);
+        .bounds(window)
+        .labels(labels)
+}
 
-    // Find min/max for dynamic y-axis scaling
-    let min_y1 = app
-        .data_ch1
+/// Creates a dynamically scaled Y-axis based on the provided data.
+fn create_y_axis(data: &[(f64, f64)]) -> Axis<'static> {
+    let (min, max) = data
         .iter()
-        .map(|(_, v)| *v)
-        .fold(f64::INFINITY, f64::min);
-    let max_y1 = app
-        .data_ch1
-        .iter()
-        .map(|(_, v)| *v)
-        .fold(f64::NEG_INFINITY, f64::max);
+        .fold((f64::INFINITY, f64::NEG_INFINITY), |(min, max), &(_, v)| {
+            (min.min(v), max.max(v))
+        });
 
-    let y_axis1 = Axis::default()
+    let (min, max) = if min.is_infinite() {
+        (0.0, 100.0)
+    } else {
+        (min, max)
+    };
+
+    let bounds = [min - Y_AXIS_PADDING, max + Y_AXIS_PADDING];
+    let labels = vec![
+        Span::from(format!("{:.1}", min)),
+        Span::from(format!("{:.1}", max)),
+    ];
+
+    Axis::default()
         .title("Value")
         .style(Style::default().gray())
-        .bounds([min_y1 - 10.0, max_y1 + 10.0]) // Add padding
-        .labels(vec![
-            Span::from(format!("{:.1}", min_y1)),
-            Span::from(format!("{:.1}", max_y1)),
-        ]);
+        .bounds(bounds)
+        .labels(labels)
+}
 
-    let chart1 = Chart::new(vec![dataset_ch1])
-        .block(
-            Block::default()
-                .title("Channel 1 EMG Data")
-                .borders(Borders::ALL),
-        )
-        .x_axis(x_axis.clone()) // Clone x_axis for the second chart
-        .y_axis(y_axis1);
-
-    f.render_widget(chart1, chunks[0]);
-
-    // --- Chart 2 ---
-    let dataset_ch2 = Dataset::default()
-        .name("Channel 2")
-        .marker(symbols::Marker::Braille)
+/// Draws a single channel chart
+fn draw_channel_chart<'a>(
+    title: &'a str,
+    data: &'a [(f64, f64)],
+    color: Color,
+    x_axis: Axis<'a>,
+    y_axis: Axis<'a>,
+) -> Chart<'a> {
+    let dataset = Dataset::default()
+        .name(title)
+        .marker(symbols::Marker::HalfBlock)
         .graph_type(GraphType::Line)
-        .style(Style::default().magenta())
-        .data(&app.data_ch2);
+        .style(Style::default().fg(color))
+        .data(data);
 
-    let min_y2 = app
-        .data_ch2
-        .iter()
-        .map(|(_, v)| *v)
-        .fold(f64::INFINITY, f64::min);
-    let max_y2 = app
-        .data_ch2
-        .iter()
-        .map(|(_, v)| *v)
-        .fold(f64::NEG_INFINITY, f64::max);
-
-    let y_axis2 = Axis::default()
-        .title("Value")
-        .style(Style::default().gray())
-        .bounds([min_y2 - 10.0, max_y2 + 10.0])
-        .labels(vec![
-            Span::from(format!("{:.1}", min_y2)),
-            Span::from(format!("{:.1}", max_y2)),
-        ]);
-
-    let chart2 = Chart::new(vec![dataset_ch2])
+    Chart::new(vec![dataset])
         .block(
             Block::default()
-                .title("Channel 2 EMG Data")
-                .borders(Borders::ALL),
+                .title(title)
+                .borders(Borders::ALL)
+                .style(Style::default().bg(Color::Reset)),
         )
         .x_axis(x_axis)
-        .y_axis(y_axis2);
-
-    f.render_widget(chart2, chunks[1]);
+        .y_axis(y_axis)
 }
