@@ -6,8 +6,4 @@ mod emg_impl;
 #[path = "emg/mock.rs"]
 mod emg_impl;
 
-trait AdcReader {
-    fn read_adc(&self, channel: u8, label: &str) -> Vec<u16>;
-}
-
 pub use emg_impl::Emg;

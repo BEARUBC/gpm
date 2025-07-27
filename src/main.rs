@@ -43,6 +43,11 @@ async fn main() {
         exporter.init().await
     });
 
+    tokio::spawn(async {
+        let exporter = exporters::emg::Exporter::new();
+        exporter.init().await
+    });
+
     info!(
         "Using {:?} as the command dispatch strategy",
         Config::global().command_dispatch_strategy

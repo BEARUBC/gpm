@@ -2,10 +2,15 @@
 
 use crate::resources::Resource;
 use gpm::sgcp;
-
-use super::AdcReader;
+use rand::Rng;
 
 pub struct Emg;
+
+#[derive(serde::Serialize)]
+pub struct EmgData {
+    pub channel_0: f64,
+    pub channel_1: f64,
+}
 
 impl Resource for Emg {
     fn init() -> Self {
@@ -17,9 +22,12 @@ impl Resource for Emg {
     }
 }
 
-impl AdcReader for Emg {
-    // TODO: @kumarpit implement mocking
-    fn read_adc(&self, _channel: u8, _label: &str) -> Vec<u16> {
-        return vec![1, 2, 3, 4, 5, 6];
+impl Emg {
+    pub fn read_adc() -> EmgData {
+        let mut rng = rand::rng();
+        EmgData {
+            channel_0: rng.random_range(-1.0..1.0),
+            channel_1: rng.random_range(-0.5..0.5),
+        }
     }
 }

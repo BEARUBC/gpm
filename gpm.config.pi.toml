@@ -19,3 +19,5 @@ cs_pin = 17
 address = "0.0.0.0:9999"
 tick_interval_in_seconds = 1 
 
+[telemetry.emg]
+address = "0.0.0.0:9998"

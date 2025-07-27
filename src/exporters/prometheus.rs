@@ -63,7 +63,7 @@ impl Exporter {
             .await
             .unwrap();
         info!(
-            "Telemetry server listening on {:?}",
+            "Prometheus exporter listening on {:?}",
             telemetry_config.address
         );
         loop {
