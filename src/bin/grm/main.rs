@@ -1,3 +1,6 @@
+//! Grasp Remote Module
+//! A TUI interface to the commands exposed by GPM for testing.
+
 mod client;
 mod utils;
 mod widgets;

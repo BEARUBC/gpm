@@ -14,9 +14,17 @@ pub struct FlattenedListNode {
     pub path: Vec<usize>,
 }
 
-impl<'a> Into<Text<'a>> for &'a FlattenedListNode {
-    fn into(self) -> Text<'a> {
-        Text::from(utils::string::snake_to_title_case(self.display.as_str()))
+impl<'a, 'b> From<&'a FlattenedListNode> for Text<'b> {
+    fn from(node: &'a FlattenedListNode) -> Self {
+        let title_cased = utils::string::snake_to_title_case(&node.display);
+        Text::from(title_cased)
+    }
+}
+
+impl<'a> From<FlattenedListNode> for Text<'a> {
+    fn from(node: FlattenedListNode) -> Self {
+        // Reuse the reference implementation to avoid duplicating code
+        Text::from(&node)
     }
 }
 
