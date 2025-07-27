@@ -1,4 +1,5 @@
 // All tasks operating on the EMG system live in this file
+use super::EmgData;
 use crate::config::Config;
 use crate::resources::Resource;
 use crate::resources::common::Adc;

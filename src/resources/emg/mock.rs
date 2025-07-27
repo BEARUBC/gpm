@@ -1,18 +1,12 @@
 //! Mocks the ADC reader and produces (somewhat realistic) EMG data
 
+use super::EmgData;
 use crate::resources::Resource;
 use chrono::Utc;
 use gpm::sgcp;
 use rand::Rng;
 
 pub struct Emg;
-
-#[derive(serde::Serialize)]
-pub struct EmgData {
-    pub channel_0: f64,
-    pub channel_1: f64,
-    pub timestamp: u64,
-}
 
 impl Resource for Emg {
     fn init() -> Self {
