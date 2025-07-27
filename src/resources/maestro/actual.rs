@@ -20,7 +20,7 @@ use raestro::maestro::{
 use std::time::Duration;
 
 pub struct Maestro {
-    controller: raestro::maestro::Maestro,
+    pub controller: raestro::maestro::Maestro,
 }
 
 impl Resource for Maestro {

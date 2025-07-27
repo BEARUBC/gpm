@@ -27,7 +27,7 @@ jobs:
 
       - name: Build for Raspberry Pi (2/3/4)
         run: |
-          cargo build --release --target=armv7-unknown-linux-gnueabihf
+          cargo build --release --target=armv7-unknown-linux-gnueabihf --features=pi
 
       - name: Rename binary
         if: ${{ inputs.publish-release }}
