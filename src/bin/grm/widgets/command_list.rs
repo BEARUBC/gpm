@@ -10,9 +10,8 @@ use crate::client::{GpmClient, GpmResponse};
 use ratatui::widgets::{List, ListItem, ListState};
 
 pub struct CommandList {
-    tree: Vec<NestedListNode>,
-    // TODO: port rendering into this widget
-    pub flattened_list: StatefulList<FlattenedListNode>,
+    tree: Vec<NestedListNode>,                           // Source of truth
+    pub flattened_list: StatefulList<FlattenedListNode>, // For rendering
     gpm_client: GpmClient,
 }
 
