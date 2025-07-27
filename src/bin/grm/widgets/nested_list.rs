@@ -72,7 +72,7 @@ impl NestedListNode {
 
             let prefix = " ".repeat(depth);
             let indicator = if !node.children.is_empty() {
-                if node.is_expanded { "▼" } else { "▶" }
+                if node.is_expanded { " ▼" } else { " ▶" }
             } else {
                 " "
             };

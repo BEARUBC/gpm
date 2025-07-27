@@ -6,6 +6,8 @@ pub mod string {
                 if c == '_' {
                     acc.push(' ');
                     capitalize_next = true;
+                } else if c == ' ' || c == '▼' || c == '▶' {
+                    acc.push(c);
                 } else if capitalize_next {
                     acc.push(c.to_ascii_uppercase());
                     capitalize_next = false;

@@ -1,12 +1,20 @@
-use ratatui::widgets::ListState;
+use ratatui::widgets::{ListState, ScrollbarState};
 
 #[derive(Debug)]
 pub struct StatefulList<T> {
-    pub state: ListState,
     pub items: Vec<T>,
+    pub state: ListState,
+    pub scrollbar_state: ScrollbarState,
 }
 
 impl<T> StatefulList<T> {
+    pub fn new() -> Self {
+        StatefulList {
+            items: Vec::new(),
+            state: ListState::default(),
+            scrollbar_state: ScrollbarState::default(),
+        }
+    }
     pub fn with_items(items: Vec<T>) -> Self {
         let state = if items.is_empty() {
             ListState::default()
@@ -14,7 +22,11 @@ impl<T> StatefulList<T> {
             ListState::default().with_selected(Some(0))
         };
 
-        Self { state, items }
+        Self {
+            state,
+            items,
+            scrollbar_state: ScrollbarState::new(0),
+        }
     }
 
     pub fn next(&mut self) {

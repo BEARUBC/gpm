@@ -11,9 +11,13 @@ use crossterm::{
 use ratatui::{
     Frame, Terminal,
     backend::{Backend, CrosstermBackend},
-    layout::{Constraint, Layout},
-    style::{Color, Modifier, Style},
-    widgets::{Block, BorderType, Borders, List, ListItem, Padding, Paragraph},
+    layout::{Constraint, Layout, Margin},
+    style::{Color, Modifier, Style, Styled, Stylize},
+    text::{Line, Span, Text},
+    widgets::{
+        Block, BorderType, Borders, List, ListItem, Padding, Paragraph, Scrollbar,
+        ScrollbarOrientation, ScrollbarState,
+    },
 };
 use std::{
     error::Error,
@@ -29,7 +33,7 @@ struct App {
     command_tree: Vec<NestedListNode>,
     command_list: StatefulList<FlattenedListNode>,
     gpm_client: GpmClient,
-    responses: Vec<GpmResponse>,
+    responses: StatefulList<GpmResponse>,
 }
 
 impl App {
@@ -54,7 +58,16 @@ impl App {
             command_tree,
             command_list,
             gpm_client: GpmClient::new(),
-            responses: Vec::new(),
+            responses: StatefulList::new(),
+        }
+    }
+
+    fn get_palette(resource: gpm::sgcp::Resource) -> Color {
+        match resource {
+            gpm::sgcp::Resource::UndefinedComponent => Color::Red,
+            gpm::sgcp::Resource::Bms => Color::LightGreen,
+            gpm::sgcp::Resource::Emg => Color::DarkGray,
+            gpm::sgcp::Resource::Maestro => Color::Blue,
         }
     }
 
@@ -77,6 +90,7 @@ impl App {
             KeyCode::Char('q') => self.should_quit = true,
             KeyCode::Down | KeyCode::Char('j') => self.command_list.next(),
             KeyCode::Up | KeyCode::Char('k') => self.command_list.previous(),
+            KeyCode::Char('p') => self.responses.previous(),
             KeyCode::Enter => self.command_list.state.selected().map_or((), |index| {
                 let node = self.command_list.items.get_mut(index).unwrap();
 
@@ -97,13 +111,22 @@ impl App {
                     let root_node = self.command_tree.get(*root).unwrap();
                     let task_code = node.path.get(1).unwrap();
 
-                    self.gpm_client
+                    let response = self
+                        .gpm_client
                         .send(
                             gpm::sgcp::Resource::from_str_name(root_node.name.as_str()).unwrap(),
                             *task_code as i32 + 1, // +1 since we don't render task 0
                         )
-                        .ok() // TODO: handle errors
-                        .map(|res| self.responses.push(res));
+                        .unwrap();
+                    self.responses.items.push(response);
+                    self.responses
+                        .state
+                        .select(Some(self.responses.items.len() - 1));
+
+                    self.responses.scrollbar_state = self
+                        .responses
+                        .scrollbar_state
+                        .position(self.responses.items.len() - 1);
                 }
             }),
             _ => {},
@@ -122,9 +145,12 @@ impl App {
         let right_panel_top = Block::default()
             .title("Status")
             .borders(Borders::ALL)
-            .border_type(BorderType::Rounded);
+            .border_type(BorderType::Rounded)
+            .padding(Padding::new(1, 0, 0, 0));
+
         frame.render_widget(
-            Paragraph::new("Connected to localhost at port: 4760"),
+            Paragraph::new("Connected to 127.0.0.1:4760")
+                .style(Style::default().fg(Color::LightGreen)),
             right_panel_top.inner(right_column_chunks[0]),
         );
 
@@ -133,24 +159,47 @@ impl App {
         let right_panel_bottom = Block::default()
             .title("History")
             .borders(Borders::ALL)
-            .border_type(BorderType::Rounded);
+            .border_type(BorderType::Rounded)
+            .padding(Padding::new(1, 1, 0, 0));
         let inner_area = right_panel_bottom.inner(right_column_chunks[1]);
 
         frame.render_widget(right_panel_bottom, right_column_chunks[1]);
 
-        if !self.responses.is_empty() {
-            frame.render_widget(
-                List::new(self.responses.iter().map(|v| {
-                    ListItem::new(format!(
-                        "[{}] {}: {}",
-                        v.resource.as_str_name(),
-                        v.message.as_str(),
-                        v.task_code
-                    ))
-                })),
+        if !self.responses.items.is_empty() {
+            frame.render_stateful_widget(
+                List::new(self.responses.items.iter().map(|v| {
+                    ListItem::new(Text::from(vec![Line::from(vec![
+                        Span::styled(
+                            format!("{}::{}", v.resource.as_str_name(), &v.task_code),
+                            Style::default()
+                                .fg(Self::get_palette(v.resource))
+                                .add_modifier(Modifier::BOLD),
+                        ),
+                        Span::styled(" ", Style::default()),
+                        Span::styled(&v.message, Style::default()),
+                    ])]))
+                }))
+                .highlight_style(Style::default().bold()),
                 inner_area,
+                &mut self.responses.state,
             );
         }
+
+        let scrollbar = Scrollbar::new(ScrollbarOrientation::VerticalRight)
+            .begin_symbol(Some("↑"))
+            .end_symbol(Some("↓"));
+
+        self.responses.scrollbar_state = ScrollbarState::new(self.responses.items.len())
+            .position(self.responses.state.selected().unwrap_or(0));
+
+        frame.render_stateful_widget(
+            scrollbar,
+            right_column_chunks[1].inner(Margin {
+                vertical: 1,
+                horizontal: 0,
+            }),
+            &mut self.responses.scrollbar_state,
+        );
 
         frame.render_stateful_widget(
             List::new(self.command_list.items.iter().map(|v| ListItem::new(v)))
