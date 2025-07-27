@@ -1,3 +1,5 @@
+//! GPM TCP Client
+
 use gpm::sgcp::*;
 use prost::Message;
 use std::io::{self, Read, Write};
@@ -20,6 +22,7 @@ impl GpmClient {
         }
     }
 
+    /// Sends command request to GPM
     pub fn send(&mut self, component: gpm::sgcp::Resource, task: i32) -> io::Result<GpmResponse> {
         let mut msg = gpm::sgcp::Request::default();
 
