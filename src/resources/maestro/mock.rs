@@ -1,5 +1,5 @@
 use crate::resources::Resource;
-use crate::sgcp;
+use gpm::sgcp;
 
 pub struct Maestro;
 

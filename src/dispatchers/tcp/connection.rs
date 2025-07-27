@@ -1,5 +1,4 @@
 // Wrapper around a TCP connection to provide a simple prefix-length framing abstraction for streaming protobufs
-use crate::Request;
 use crate::config::Config;
 use anyhow::Error;
 use anyhow::Result;
@@ -34,7 +33,7 @@ impl Connection {
     /// Read a single protobuf frame from the underlying stream. If the peer cleanly closes
     /// the connection `Ok(None)` is returned. If the connection is not cleanly closed
     /// (i.e buffer is non-empty) an Err is returned.
-    pub async fn read_frame(&mut self) -> Result<Option<Request>> {
+    pub async fn read_frame(&mut self) -> Result<Option<gpm::sgcp::Request>> {
         loop {
             if let Some(req) = self.parse_frame().await? {
                 return Ok(Some(req));
@@ -71,7 +70,7 @@ impl Connection {
     /// enough data has been buffered yet, `Ok(None)` is returned. If the
     /// buffered data does not represent a valid frame, or read fails for some
     /// reason, an `Err` is returned.
-    async fn parse_frame(&mut self) -> Result<Option<Request>> {
+    async fn parse_frame(&mut self) -> Result<Option<gpm::sgcp::Request>> {
         if self.buffer.is_empty() {
             return Ok(None);
         }
@@ -98,7 +97,7 @@ impl Connection {
         // Drop all read data
         self.buffer
             .advance(len + server_config.frame_prefix_length_in_bytes as usize);
-        let parsed_frame = Request::decode(Bytes::from(data))?;
+        let parsed_frame = gpm::sgcp::Request::decode(Bytes::from(data))?;
         Ok(Some(parsed_frame))
     }
 }

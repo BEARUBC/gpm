@@ -3,21 +3,17 @@ use crate::managers::ManagerChannelData;
 use crate::managers::ResourceManager;
 use crate::managers::TASK_SUCCESS;
 use crate::managers::macros::parse_channel_data;
-use crate::request::TaskData::MaestroData;
-use crate::resources::Resource;
 use crate::resources::maestro::Maestro;
-use crate::sgcp;
-use crate::sgcp::maestro::Task as MaestroTask;
-use crate::sgcp::maestro::*;
 use anyhow::Error;
 use anyhow::Result;
 use anyhow::anyhow;
+use gpm::sgcp::maestro::Task as MaestroTask;
+use gpm::sgcp::request::TaskData::MaestroData;
 use log::*;
 use raestro::maestro::{
     builder::Builder,
     constants::{Baudrate, Channel, MAX_QTR_PWM, MIN_QTR_PWM},
 };
-use std::time::Duration;
 
 impl ResourceManager for Manager<Maestro> {
     type ResourceType = Maestro;
