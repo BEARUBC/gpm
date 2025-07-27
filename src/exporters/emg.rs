@@ -10,7 +10,7 @@ use tokio::{
     time::interval,
 };
 
-use crate::resources::emg::Emg;
+use crate::{config::Config, resources::emg::Emg};
 
 pub struct Exporter {
     address: String,
@@ -18,15 +18,24 @@ pub struct Exporter {
 }
 
 impl Exporter {
-    pub fn new(address: String, interval_ms: u64) -> Self {
+    pub fn new() -> Self {
+        // ew
+        let emg_telemetry_config = Config::global()
+            .telemetry
+            .as_ref()
+            .unwrap()
+            .emg
+            .as_ref()
+            .unwrap();
+
         Exporter {
-            address,
-            interval_duration: Duration::from_millis(interval_ms),
+            address: emg_telemetry_config.address.clone(),
+            interval_duration: Duration::from_millis(emg_telemetry_config.tick_interval_in_millis),
         }
     }
 
     /// Main server loop
-    pub async fn run(self) -> Result<()> {
+    pub async fn init(self) -> Result<()> {
         let listener = TcpListener::bind(&self.address)
             .await
             .with_context(|| format!("Failed to bind TCP listener to {}", self.address))?;

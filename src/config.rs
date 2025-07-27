@@ -48,6 +48,7 @@ pub struct EmgConfig {
 #[derive(Debug, Deserialize)]
 pub struct TelemetryEmgConfig {
     pub address: String,
+    pub tick_interval_in_millis: u64,
 }
 
 #[derive(Debug, Deserialize)]
