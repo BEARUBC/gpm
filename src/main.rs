@@ -1,8 +1,8 @@
 mod config;
 mod dispatchers;
+mod exporters;
 mod managers;
 mod resources;
-mod telemetry;
 
 use config::CommandDispatchStrategy;
 use config::Config;
@@ -39,7 +39,12 @@ async fn main() {
     };
 
     tokio::spawn(async {
-        let mut exporter = telemetry::Exporter::new();
+        let mut exporter = exporters::prometheus::Exporter::new();
+        exporter.init().await
+    });
+
+    tokio::spawn(async {
+        let exporter = exporters::emg::Exporter::new();
         exporter.init().await
     });
 

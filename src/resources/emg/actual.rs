@@ -1,10 +1,13 @@
 // All tasks operating on the EMG system live in this file
+use super::EmgData;
 use crate::config::Config;
 use crate::resources::Resource;
 use crate::resources::common::Adc;
 use anyhow::{Error, Result};
+use chrono::Utc;
 use gpm::sgcp;
 use log::*;
+use rand::Rng;
 use rppal::gpio::{Gpio, OutputPin};
 use rppal::spi::{Bus, Mode, SlaveSelect, Spi};
 use std::{io, thread, time::Duration};
@@ -42,6 +45,18 @@ impl Resource for Emg {
 }
 
 impl Emg {
+    // MOCK -- FOR EMG VISUALIZATION
+    // TODO:Define a trait to provide a uniform interface to provide EMG (ADC) data to the EMG
+    // exporter
+    pub fn read_adc() -> EmgData {
+        let mut rng = rand::rng();
+        EmgData {
+            channel_0: rng.random_range(-1.0..1.0),
+            channel_1: rng.random_range(-0.5..0.5),
+            timestamp: Utc::now().timestamp_millis() as u64,
+        }
+    }
+
     pub fn process_data(&self, values: Vec<u16>) -> Result<i32> {
         if values.len() != 2 {
             return Err(Error::msg("Expected 2 EMG values"));

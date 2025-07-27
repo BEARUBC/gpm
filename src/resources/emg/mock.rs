@@ -1,8 +1,10 @@
-// All tasks operating on the EMG system live in this file
-use crate::resources::Resource;
-use gpm::sgcp;
+//! Mocks the ADC reader and produces (somewhat realistic) EMG data
 
-// TODO: Implement mock Emg
+use super::EmgData;
+use crate::resources::Resource;
+use chrono::Utc;
+use gpm::sgcp;
+use rand::Rng;
 
 pub struct Emg;
 
@@ -13,5 +15,16 @@ impl Resource for Emg {
 
     fn name() -> String {
         sgcp::Resource::Emg.as_str_name().to_string()
+    }
+}
+
+impl Emg {
+    pub fn read_adc() -> EmgData {
+        let mut rng = rand::rng();
+        EmgData {
+            channel_0: rng.random_range(-1.0..1.0),
+            channel_1: rng.random_range(-0.5..0.5),
+            timestamp: Utc::now().timestamp_millis() as u64,
+        }
     }
 }
