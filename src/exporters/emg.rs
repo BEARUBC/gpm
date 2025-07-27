@@ -43,7 +43,7 @@ impl Exporter {
 
     async fn handle_client(socket: TcpStream) {
         let (_reader, mut writer) = socket.into_split();
-        let mut interval = interval(Duration::from_millis(50)); // Send data every 50ms
+        let mut interval = interval(Duration::from_millis(1000));
 
         loop {
             interval.tick().await;
@@ -67,6 +67,11 @@ impl Exporter {
                     e
                 );
                 break; // Client disconnected
+            }
+
+            if let Err(e) = writer.flush().await {
+                error!("Failed to flush socket: {}. Client likely disconnected.", e);
+                break;
             }
         }
         info!("Client disconnected.");

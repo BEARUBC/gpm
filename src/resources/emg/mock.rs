@@ -1,6 +1,7 @@
 //! Mocks the ADC reader and produces (somewhat realistic) EMG data
 
 use crate::resources::Resource;
+use chrono::Utc;
 use gpm::sgcp;
 use rand::Rng;
 
@@ -10,6 +11,7 @@ pub struct Emg;
 pub struct EmgData {
     pub channel_0: f64,
     pub channel_1: f64,
+    pub timestamp: u64,
 }
 
 impl Resource for Emg {
@@ -28,6 +30,7 @@ impl Emg {
         EmgData {
             channel_0: rng.random_range(-1.0..1.0),
             channel_1: rng.random_range(-0.5..0.5),
+            timestamp: Utc::now().timestamp_millis() as u64,
         }
     }
 }
