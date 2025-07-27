@@ -12,3 +12,4 @@ tick_interval_in_seconds = 1
 
 [telemetry.emg]
 address = "127.0.0.1:9998"
+tick_interval_in_millis = 1000
