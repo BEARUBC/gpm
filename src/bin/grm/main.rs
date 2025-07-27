@@ -160,9 +160,25 @@ impl App {
     }
 
     fn render(&mut self, frame: &mut Frame) {
+        let super_chunks =
+            Layout::vertical([Constraint::Min(0), Constraint::Percentage(5)]).split(frame.area());
+
+        // Footer
+        let footer_panel = Block::default()
+            .borders(Borders::ALL)
+            .border_type(BorderType::Rounded);
+
+        frame.render_widget(
+            Line::raw("<↑>/<k> <↓>/<j> move up/down | <enter> run command | <t> to toggle tabs | <q> quit")
+            .style(Style::default().fg(Color::Cyan)),
+            footer_panel.inner(super_chunks[1]),
+        );
+
+        // Main content
+
         let main_chunks =
             Layout::horizontal([Constraint::Percentage(30), Constraint::Percentage(70)])
-                .split(frame.area());
+                .split(super_chunks[0]);
 
         let left_column = main_chunks[0];
         let right_column_chunks =
