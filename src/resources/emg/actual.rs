@@ -5,7 +5,7 @@ use anyhow::{Error, Result};
 use log::*;
 
 use crate::resources::Resource;
-use crate::sgcp;
+use gpm::sgcp;
 use rppal::gpio::OutputPin;
 use rppal::spi::Spi;
 use std::{io, thread, time::Duration};

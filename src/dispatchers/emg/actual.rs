@@ -3,7 +3,7 @@ use crate::ManagerChannelMap;
 use super::EmgDispatcher;
 use crate::config::Config;
 use crate::dispatchers::{Dispatcher, dispatch_task};
-use crate::sgcp;
+use gpm::sgcp;
 use log::*;
 use std::time::Duration;
 use tokio::time::interval;
