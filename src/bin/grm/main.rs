@@ -169,7 +169,9 @@ impl App {
             .border_type(BorderType::Rounded);
 
         frame.render_widget(
-            Line::raw("<↑>/<k> <↓>/<j> move up/down | <enter> run command | <t> to toggle tabs | <q> quit")
+            Line::raw(
+                "<↑>/<k> <↓>/<j> move up/down | <enter> run command | <t> toggle tabs | <q> quit",
+            )
             .style(Style::default().fg(Color::Cyan)),
             footer_panel.inner(super_chunks[1]),
         );
