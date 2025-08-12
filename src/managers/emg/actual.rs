@@ -44,13 +44,6 @@ impl ResourceManager for Manager<Emg> {
                     Ok("CLOSE HAND".to_string())
                 }
             },
-            Task::Calibrate => match self.resource.calibrate_emg() {
-                Ok(_) => Ok(TASK_SUCCESS.to_string()),
-                Err(e) => {
-                    error!("Calibration failed: {:?}", e);
-                    Err(Error::msg(format!("Calibration failed: {}", e)))
-                },
-            },
             Task::Abort => {
                 info!("Aborting EMG task");
                 Ok(TASK_SUCCESS.to_string())
@@ -58,13 +51,7 @@ impl ResourceManager for Manager<Emg> {
         };
 
         let response = match res {
-            Ok(message) => {
-                if message == "OPEN HAND" || message == "CLOSE HAND" {
-                    message
-                } else {
-                    TASK_SUCCESS.to_string()
-                }
-            },
+            Ok(message) => message,
             Err(e) => format!("Error: {e}"),
         };
 

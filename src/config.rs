@@ -9,7 +9,9 @@ use serde::Deserialize;
 pub enum CommandDispatchStrategy {
     Tcp,
     Gpio,
+    BioSignal,
     Emg,
+    Fsr,
 }
 
 impl Default for CommandDispatchStrategy {
@@ -23,6 +25,8 @@ pub struct Dispatcher {
     pub tcp: ServerConfig,
     pub emg: Option<EmgConfig>,
     pub gpio_monitor: Option<GpioMonitorConfig>,
+    pub bio_signal: Option<BioSignalConfig>,
+    pub fsr: Option<FsrConfig>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -39,11 +43,26 @@ pub struct GpioMonitorConfig {
 }
 
 #[derive(Debug, Deserialize)]
+pub struct BioSignalConfig {
+    pub sensors: Vec<String>,
+}
+
+#[derive(Debug, Deserialize)]
 pub struct EmgConfig {
     pub buffer_size: usize,
     pub pause_duration_ms: u64,
     pub sampling_speed_ms: u64,
     pub cs_pin: u8,
+    pub clock_speed: u32,
+}
+#[derive(Debug, Deserialize)]
+pub struct FsrConfig {
+    pub pause_duration_ms: u64,
+    pub num_fsrs: u8,
+    pub cs_pins: Vec<u8>,
+    pub clock_speed: u32,
+    pub at_rest_threshold: u64,
+    pub pressure_threshold: u64,
 }
 
 #[derive(Debug, Deserialize)]
@@ -58,6 +77,8 @@ pub struct TelemetryConfig {
     pub tick_interval_in_seconds: i32,
     pub emg: Option<TelemetryEmgConfig>,
 }
+
+
 
 #[derive(Debug, Deserialize)]
 pub struct Config {

@@ -1,4 +1,4 @@
-command_dispatch_strategy = "emg"
+command_dispatch_strategy = "bio_signal"
 
 [dispatcher.tcp]
 max_concurrent_connections = 1
@@ -9,11 +9,23 @@ frame_prefix_length_in_bytes = 8
 [dispatcher.gpio_monitor]
 pin = 2
 
+[dispatcher.bio_signal]
+sensors = ["emg", "fsr"]
+
 [dispatcher.emg]
 buffer_size = 100
 pause_duration_ms = 500
 sampling_speed_ms = 1000
 cs_pin = 17
+clock_speed = 500000
+
+[dispatcher.fsr]
+pause_duration_ms = 200
+num_fsrs = 1
+cs_pins = [13]
+clock_speed = 500000
+at_rest_threshold = 990
+presure_threshold = 90
 
 [telemetry]
 address = "0.0.0.0:9999"

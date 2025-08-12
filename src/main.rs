@@ -9,7 +9,9 @@ use std::collections::HashMap;
 use config::CommandDispatchStrategy;
 use config::Config;
 use dispatchers::Dispatcher;
+use dispatchers::bio_signal::BioSignalDispatcher;
 use dispatchers::emg::EmgDispatcher;
+use dispatchers::fsr::FsrDispatcher;
 use dispatchers::gpio::GpioDispatcher;
 use dispatchers::tcp::TcpDispatcher;
 use log::*;
@@ -21,6 +23,7 @@ use resources::bms::Bms;
 use resources::emg::Emg;
 use resources::maestro::Maestro;
 use tokio::sync::mpsc::Sender;
+
 
 /// Represents the mapping between resource manager keys and the tx component
 /// of the resource manager's MPSC channel
@@ -34,9 +37,10 @@ async fn main() {
 
     // Initialize resource managers and their communication channels.
     let manager_channel_map = managers::macros::init_resource_managers! {
-        gpm::sgcp::Resource::Bms => Manager::<Bms>::new(),
-        gpm::sgcp::Resource::Emg => Manager::<Emg>::new(),
-        gpm::sgcp::Resource::Maestro => Manager::<Maestro>::new()
+        sgcp::Resource::Bms => Manager::<Bms>::new(),
+        sgcp::Resource::Emg => Manager::<Emg>::new(),
+        sgcp::Resource::Maestro => Manager::<Maestro>::new(),
+        sgcp::Resource::Fsr => Manager::<Fsr>::new()
     };
 
     tokio::spawn(async {
@@ -57,6 +61,8 @@ async fn main() {
     match Config::global().command_dispatch_strategy {
         CommandDispatchStrategy::Tcp => TcpDispatcher::run(manager_channel_map).await,
         CommandDispatchStrategy::Gpio => GpioDispatcher::run(manager_channel_map).await,
+        CommandDispatchStrategy::BioSignal => BioSignalDispatcher::run(manager_channel_map).await,
         CommandDispatchStrategy::Emg => EmgDispatcher::run(manager_channel_map).await,
+        CommandDispatchStrategy::Fsr => FsrDispatcher::run(manager_channel_map).await,
     }
 }

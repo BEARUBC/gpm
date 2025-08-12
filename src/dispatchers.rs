@@ -1,4 +1,6 @@
+pub mod bio_signal;
 pub mod emg;
+pub mod fsr;
 pub mod gpio;
 mod macros;
 pub mod tcp;

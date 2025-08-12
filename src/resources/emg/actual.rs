@@ -1,3 +1,4 @@
+use core::panic;
 // All tasks operating on the EMG system live in this file
 use std::io;
 use std::thread;
@@ -39,16 +40,22 @@ impl Resource for Emg {
             .as_ref()
             .expect("Expected emg config to be defined");
 
-        let adc = Adc::init(emg_config.cs_pin);
+        let adc = Adc::init(emg_config.cs_pin, emg_config.clock_speed);
 
-        Emg {
+        let mut emg = Emg {
             adc,
             buffer_size: emg_config.buffer_size,
             inner_threshold: 0,
             outer_threshold: 0,
             prev_grip_state: 0,
             inter_channel_sample_duration: emg_config.pause_duration_ms,
+        };
+
+        if let Err(_) = Emg::calibrate_emg(&mut emg) {
+            panic!("Unable to calibrate EMG.");
         }
+
+        emg
     }
 
     fn name() -> String {
@@ -106,7 +113,6 @@ impl Emg {
             info!("Error calculating average for outer buffer: {}", e);
             0
         });
-
         self.inner_threshold = avg_inner;
         self.outer_threshold = avg_outer;
 
