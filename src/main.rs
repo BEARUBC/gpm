@@ -39,8 +39,8 @@ async fn main() {
     let manager_channel_map = managers::macros::init_resource_managers! {
         sgcp::Resource::Bms => Manager::<Bms>::new(),
         sgcp::Resource::Emg => Manager::<Emg>::new(),
-        sgcp::Resource::Maestro => Manager::<Maestro>::new(),
-        sgcp::Resource::Fsr => Manager::<Fsr>::new()
+        sgcp::Resource::Maestro => Manager::<Maestro>::new()
+        //sgcp::Resource::Fsr => Manager::<Fsr>::new()
     };
 
     tokio::spawn(async {
