@@ -42,7 +42,7 @@ impl ResourceManager for Manager<Fsr> {
         };
 
         let response = match task_result {
-            Ok(_) => TASK_SUCCESS.to_string(),
+            Ok(message) => message,
             Err(e) => format!("Error: {e}"),
         };
 
