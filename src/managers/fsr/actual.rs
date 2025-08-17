@@ -36,7 +36,7 @@ impl ResourceManager for Manager<Fsr> {
                 }
             },
             FsrTask::Abort => {
-                info!("Aborting EMG task");
+                info!("Aborting FSR task");
                 Ok(TASK_SUCCESS.to_string())
             },
         };
