@@ -5,28 +5,48 @@ mod client;
 mod utils;
 mod widgets;
 
+use std::error::Error;
+use std::io::{self};
+
 use client::GpmResponse;
-use crossterm::{
-    event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyEvent},
-    execute,
-    terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
-};
-use ratatui::{
-    Frame, Terminal,
-    backend::{Backend, CrosstermBackend},
-    layout::{Constraint, Layout, Margin, Rect},
-    style::{Color, Modifier, Style, Stylize},
-    text::{Line, Span, Text},
-    widgets::{
-        Block, BorderType, Borders, List, ListItem, Padding, Paragraph, Scrollbar,
-        ScrollbarOrientation, ScrollbarState,
-    },
-};
-use std::{
-    error::Error,
-    io::{self},
-};
-use widgets::{command_list::CommandList, stateful_list::StatefulList};
+use crossterm::event::DisableMouseCapture;
+use crossterm::event::EnableMouseCapture;
+use crossterm::event::Event;
+use crossterm::event::KeyCode;
+use crossterm::event::KeyEvent;
+use crossterm::event::{self};
+use crossterm::execute;
+use crossterm::terminal::EnterAlternateScreen;
+use crossterm::terminal::LeaveAlternateScreen;
+use crossterm::terminal::disable_raw_mode;
+use crossterm::terminal::enable_raw_mode;
+use ratatui::Frame;
+use ratatui::Terminal;
+use ratatui::backend::Backend;
+use ratatui::backend::CrosstermBackend;
+use ratatui::layout::Constraint;
+use ratatui::layout::Layout;
+use ratatui::layout::Margin;
+use ratatui::layout::Rect;
+use ratatui::style::Color;
+use ratatui::style::Modifier;
+use ratatui::style::Style;
+use ratatui::style::Stylize;
+use ratatui::text::Line;
+use ratatui::text::Span;
+use ratatui::text::Text;
+use ratatui::widgets::Block;
+use ratatui::widgets::BorderType;
+use ratatui::widgets::Borders;
+use ratatui::widgets::List;
+use ratatui::widgets::ListItem;
+use ratatui::widgets::Padding;
+use ratatui::widgets::Paragraph;
+use ratatui::widgets::Scrollbar;
+use ratatui::widgets::ScrollbarOrientation;
+use ratatui::widgets::ScrollbarState;
+use widgets::command_list::CommandList;
+use widgets::stateful_list::StatefulList;
 
 /// The primary, user-selectable blocks in the TUI
 enum GrmBlock {
@@ -263,6 +283,7 @@ impl App {
             gpm::sgcp::Resource::Bms => Color::LightGreen,
             gpm::sgcp::Resource::Emg => Color::DarkGray,
             gpm::sgcp::Resource::Maestro => Color::Blue,
+            gpm::sgcp::Resource::Fsr => Color::Cyan,
         }
     }
 }

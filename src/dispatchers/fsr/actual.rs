@@ -8,7 +8,7 @@ use crate::ManagerChannelMap;
 use crate::config::Config;
 use crate::dispatchers::Dispatcher;
 use crate::dispatchers::dispatch_task;
-use crate::sgcp;
+use crate::dispatchers::sgcp;
 
 
 impl Dispatcher for FsrDispatcher {

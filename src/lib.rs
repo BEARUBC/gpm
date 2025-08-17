@@ -11,6 +11,9 @@ pub mod sgcp {
     pub mod maestro {
         include!(concat!(env!("OUT_DIR"), "/sgcp.maestro.rs"));
     }
+    pub mod fsr {
+        include!(concat!(env!("OUT_DIR"), "/sgcp.fsr.rs"));
+    }
 }
 
 use sgcp::Resource;
@@ -25,5 +28,6 @@ pub fn get_tasks_for_resource(resource: &sgcp::Resource) -> Vec<String> {
         Resource::Bms => get_task_names!(sgcp::bms::Task),
         Resource::Emg => get_task_names!(sgcp::emg::Task),
         Resource::Maestro => get_task_names!(sgcp::maestro::Task),
+        Resource::Fsr => get_task_names!(sgcp::fsr::Task),
     }
 }

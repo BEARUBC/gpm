@@ -1,6 +1,10 @@
 use anyhow::Error;
 use anyhow::Result;
 use anyhow::anyhow;
+use gpm::not_on_pi;
+use gpm::sgcp;
+use gpm::sgcp::fsr::Task as FsrTask;
+use gpm::sgcp::request::TaskData::FsrData;
 use log::*;
 
 use crate::managers::Manager;
@@ -8,10 +12,7 @@ use crate::managers::ManagerChannelData;
 use crate::managers::ResourceManager;
 use crate::managers::TASK_SUCCESS;
 use crate::managers::macros::parse_channel_data;
-use crate::not_on_pi;
-use crate::request::TaskData::FsrData;
 use crate::resources::fsr::Fsr;
-use crate::sgcp::fsr::Task as FsrTask;
 
 impl ResourceManager for Manager<Fsr> {
     type ResourceType = Fsr;

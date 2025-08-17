@@ -10,7 +10,7 @@ use crate::config::Config;
 use crate::dispatchers::Dispatcher;
 use crate::dispatchers::dispatch_task;
 
-// TODO: refactor
+
 impl Dispatcher for EmgDispatcher {
     async fn run(manager_channel_map: ManagerChannelMap) {
         let emg_config = Config::global()
@@ -22,24 +22,13 @@ impl Dispatcher for EmgDispatcher {
         let mut emg_idle = interval(Duration::from_millis(emg_config.sampling_speed_ms)); // 1000 ms for 1 Hz sampling rate for idle tasks, 2 ms for 500 Hz sampling rate
 
         let mut emg_dispatcher = EmgDispatcher;
-        // let mut HAPTICS_idle = interval(Duration::from_millis(1000)); // 1 Hz sampling rate //
-        // example for haptics
+
         let send_channel_map = manager_channel_map.clone();
         loop {
             emg_dispatcher.process_idle_task(&send_channel_map).await;
 
             _ = emg_idle.tick();
         }
-        // loop {
-        //     tokio::select! {
-        //         _ = emg_idle.tick() => {
-        //             process_idle_task(&send_channel_map, sgcp::Resource::Emg, "IDLE",
-        // &emg_response_mapping).await;         }
-        //         // _ = HAPTICS_idle.tick() => {
-        //         //     // handle haptics idle task here
-        //         // }
-        //     }
-        // }
     }
 }
 

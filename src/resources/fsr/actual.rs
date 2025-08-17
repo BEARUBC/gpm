@@ -1,10 +1,10 @@
 use anyhow::Context;
 use anyhow::Result;
+use gpm::sgcp;
 
 use crate::config::Config;
 use crate::resources::Resource;
 use crate::resources::common::Adc;
-use crate::sgcp;
 
 pub struct Fsr {
     pub at_rest_threshold: u16,

@@ -1,6 +1,9 @@
 use anyhow::Error;
 use anyhow::Result;
 use anyhow::anyhow;
+use gpm::not_on_pi;
+use gpm::sgcp::maestro::Task as MaestroTask;
+use gpm::sgcp::request::TaskData::MaestroData;
 use log::*;
 
 use crate::managers::Manager;
@@ -9,7 +12,6 @@ use crate::managers::ResourceManager;
 use crate::managers::TASK_SUCCESS;
 use crate::managers::macros::parse_channel_data;
 use crate::resources::maestro::Maestro;
-use crate::sgcp::maestro::Task as MaestroTask;
 
 impl ResourceManager for Manager<Maestro> {
     type ResourceType = Maestro;

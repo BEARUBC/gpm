@@ -76,7 +76,9 @@ impl Emg {
         }
     }
 
-    pub fn process_data(&self, values: Vec<u16>) -> Result<i32> {
+    pub fn process_data(&mut self, values: Vec<u16>) -> Result<i32> {
+        const OPEN_FIST: i32 = 1;
+        const CLOSE_FIST: i32 = 0;
         if values.len() != 2 {
             return Err(Error::msg("Expected 2 EMG values"));
         }

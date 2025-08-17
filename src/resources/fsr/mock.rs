@@ -1,6 +1,7 @@
 // All tasks operating on the EMG system live in this file
+use gpm::sgcp;
+
 use crate::resources::Resource;
-use crate::sgcp;
 
 // TODO: Implement mock Fsr
 
