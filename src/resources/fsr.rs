@@ -1,9 +1,9 @@
 #[cfg(feature = "pi")]
-#[path = "emg/actual.rs"]
-mod emg_impl;
+#[path = "fsr/actual.rs"]
+mod fsr_impl;
 
 #[cfg(not(feature = "pi"))]
-#[path = "emg/mock.rs"]
-mod emg_impl;
+#[path = "fsr/mock.rs"]
+mod fsr_impl;
 
-pub use emg_impl::Emg;
+pub use fsr_impl::Fsr;

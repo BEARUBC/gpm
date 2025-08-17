@@ -58,11 +58,11 @@ pub struct EmgConfig {
 #[derive(Debug, Deserialize)]
 pub struct FsrConfig {
     pub pause_duration_ms: u64,
-    pub num_fsrs: u8,
+    pub num_fsrs: usize,
     pub cs_pins: Vec<u8>,
     pub clock_speed: u32,
-    pub at_rest_threshold: u64,
-    pub pressure_threshold: u64,
+    pub at_rest_threshold: u16,
+    pub pressure_threshold: u16,
 }
 
 #[derive(Debug, Deserialize)]

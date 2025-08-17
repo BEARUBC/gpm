@@ -8,6 +8,7 @@ use crate::ManagerChannelMap;
 use crate::config::Config;
 use crate::dispatchers::Dispatcher;
 use crate::dispatchers::emg::EmgDispatcher;
+use crate::dispatchers::fsr::FsrDispatcher;
 
 impl Dispatcher for BioSignalDispatcher {
     async fn run(manager_channel_map: ManagerChannelMap) {
@@ -17,6 +18,7 @@ impl Dispatcher for BioSignalDispatcher {
             .as_ref()
             .expect("Bio Signal config should be defined.");
         let mut emg_dispatcher = EmgDispatcher;
+        let mut fsr_dispatcher = FsrDispatcher;
         let mut emg_idle = interval(Duration::from_millis(0));
         let mut fsr_idle = interval(Duration::from_millis(0));
 
@@ -55,7 +57,7 @@ impl Dispatcher for BioSignalDispatcher {
                     emg_dispatcher.process_idle_task(&manager_channel_map).await;
                 }
                 _ = fsr_idle.tick() => {
-                    //Todo: dispatch fsr idle tasks
+                    fsr_dispatcher.dispatch(&manager_channel_map).await;
                 }
             }
         }

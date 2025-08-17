@@ -1,5 +1,6 @@
 pub mod bms;
 pub mod emg;
+pub mod fsr;
 pub mod macros;
 pub mod maestro;
 
