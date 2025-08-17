@@ -21,6 +21,7 @@ use managers::ManagerChannelData;
 use managers::ResourceManager;
 use resources::bms::Bms;
 use resources::emg::Emg;
+use resources::fsr::Fsr;
 use resources::maestro::Maestro;
 use tokio::sync::mpsc::Sender;
 

@@ -8,6 +8,7 @@ use crate::managers::ManagerChannelData;
 use crate::managers::ResourceManager;
 use crate::managers::TASK_SUCCESS;
 use crate::managers::macros::parse_channel_data;
+use crate::not_on_pi;
 use crate::request::TaskData::FsrData;
 use crate::resources::fsr::Fsr;
 use crate::sgcp::fsr::Task as FsrTask;
@@ -31,7 +32,7 @@ impl ResourceManager for Manager<Fsr> {
         };
 
         let response = match task_result {
-            Ok(_) => TASK_SUCCESS.to_string(),
+            Ok(message) => message,
             Err(e) => format!("Error: {e}"),
         };
 
