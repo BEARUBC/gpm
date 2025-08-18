@@ -41,7 +41,7 @@ impl FsrDispatcher {
         match fsr_response {
             Ok(response) => {
                 let maestro_request = sgcp::Request {
-                    resource: sgcp::Resource::Fsr as i32,
+                    resource: sgcp::Resource::Maestro as i32,
                     task_code: response,
                     task_data: None,
                 };
