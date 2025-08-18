@@ -1,9 +1,12 @@
 //! GPM TCP Client
 
+use std::io::Read;
+use std::io::Write;
+use std::io::{self};
+use std::net::TcpStream;
+
 use gpm::sgcp::*;
 use prost::Message;
-use std::io::{self, Read, Write};
-use std::net::TcpStream;
 
 pub struct GpmClient {
     stream: TcpStream,
@@ -35,6 +38,7 @@ impl GpmClient {
                 .unwrap()
                 .as_str_name()
                 .to_string(),
+            Resource::Fsr => fsr::Task::try_from(task).unwrap().as_str_name().to_string(),
         };
 
         let mut buf = Vec::new();

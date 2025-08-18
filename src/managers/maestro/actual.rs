@@ -1,19 +1,23 @@
-use crate::managers::Manager;
-use crate::managers::ManagerChannelData;
-use crate::managers::ResourceManager;
-use crate::managers::TASK_SUCCESS;
-use crate::managers::macros::parse_channel_data;
-use crate::resources::maestro::Maestro;
+use std::time::Duration;
+
 use anyhow::Error;
 use anyhow::Result;
 use anyhow::anyhow;
 use gpm::sgcp::maestro::Task as MaestroTask;
 use gpm::sgcp::request::TaskData::MaestroData;
 use log::*;
-use raestro::maestro::{
-    builder::Builder,
-    constants::{Baudrate, Channel, MAX_QTR_PWM, MIN_QTR_PWM},
-};
+use raestro::maestro::builder::Builder;
+use raestro::maestro::constants::Baudrate;
+use raestro::maestro::constants::Channel;
+use raestro::maestro::constants::MAX_QTR_PWM;
+use raestro::maestro::constants::MIN_QTR_PWM;
+
+use crate::managers::Manager;
+use crate::managers::ManagerChannelData;
+use crate::managers::ResourceManager;
+use crate::managers::TASK_SUCCESS;
+use crate::managers::macros::parse_channel_data;
+use crate::resources::maestro::Maestro;
 
 impl ResourceManager for Manager<Maestro> {
     type ResourceType = Maestro;
@@ -39,6 +43,16 @@ impl ResourceManager for Manager<Maestro> {
                 controller.set_target(Channel::Channel0, MAX_QTR_PWM)?;
                 controller.set_target(Channel::Channel1, MAX_QTR_PWM)?;
                 controller.set_target(Channel::Channel2, MAX_QTR_PWM)?;
+                Ok(())
+            },
+            MaestroTask::VibrateOn => {
+                // TODO: add logic to turn on vibrate
+                info!("Vibrate on");
+                Ok(())
+            },
+            MaestroTask::VibrateOff => {
+                // TODO: add logic to turn off vibrate
+                info!("Vibrate off");
                 Ok(())
             },
         };

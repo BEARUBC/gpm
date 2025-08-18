@@ -1,3 +1,4 @@
 [submodule "sgcp"]
 	path = sgcp
 	url = git@github.com:BEARUBC/sgcp.git
+	branch = main

@@ -1,9 +1,10 @@
 pub mod bms;
 pub mod emg;
+pub mod fsr;
 pub mod macros;
 pub mod maestro;
 
-use crate::resources::Resource;
+
 use anyhow::Result;
 use gpm::sgcp::request::TaskData;
 use log::error;
@@ -11,6 +12,8 @@ use log::info;
 use tokio::sync::mpsc::Receiver;
 use tokio::sync::mpsc::Sender;
 use tokio::sync::mpsc::channel;
+
+use crate::resources::Resource;
 
 /// Represents the channel used by a resource manager to return the task response
 type Responder<T> = tokio::sync::oneshot::Sender<T>;

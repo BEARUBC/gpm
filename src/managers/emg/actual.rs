@@ -1,18 +1,22 @@
-use crate::managers::Manager;
-use crate::managers::ManagerChannelData;
-use crate::managers::ResourceManager;
-use crate::managers::TASK_SUCCESS;
-use crate::managers::macros::parse_channel_data;
-use crate::resources::emg::Emg;
 use anyhow::Error;
 use anyhow::Result;
 use anyhow::anyhow;
 use gpm::sgcp::emg::*;
 use gpm::sgcp::request::TaskData::EmgData;
 use log::*;
+use rppal::gpio::Gpio;
+use rppal::gpio::OutputPin;
+use rppal::spi::Bus;
+use rppal::spi::Mode;
+use rppal::spi::SlaveSelect;
+use rppal::spi::Spi;
 
-use rppal::gpio::{Gpio, OutputPin};
-use rppal::spi::{Bus, Mode, SlaveSelect, Spi};
+use crate::managers::Manager;
+use crate::managers::ManagerChannelData;
+use crate::managers::ResourceManager;
+use crate::managers::TASK_SUCCESS;
+use crate::managers::macros::parse_channel_data;
+use crate::resources::emg::Emg;
 
 impl ResourceManager for Manager<Emg> {
     type ResourceType = Emg;
@@ -37,17 +41,9 @@ impl ResourceManager for Manager<Emg> {
                     info!("Opening hand");
                     Ok("OPEN HAND".to_string())
                 } else {
-                    // TODO: handle the case where grip_state is -1
                     info!("Closing hand");
                     Ok("CLOSE HAND".to_string())
                 }
-            },
-            Task::Calibrate => match self.resource.calibrate_emg() {
-                Ok(_) => Ok(TASK_SUCCESS.to_string()),
-                Err(e) => {
-                    error!("Calibration failed: {:?}", e);
-                    Err(Error::msg(format!("Calibration failed: {}", e)))
-                },
             },
             Task::Abort => {
                 info!("Aborting EMG task");
@@ -56,13 +52,7 @@ impl ResourceManager for Manager<Emg> {
         };
 
         let response = match res {
-            Ok(message) => {
-                if message == "OPEN HAND" || message == "CLOSE HAND" {
-                    message
-                } else {
-                    TASK_SUCCESS.to_string()
-                }
-            },
+            Ok(message) => message,
             Err(e) => format!("Error: {e}"),
         };
 

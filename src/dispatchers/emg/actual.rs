@@ -1,20 +1,18 @@
-use crate::ManagerChannelMap;
+use std::time::Duration;
 
-use super::EmgDispatcher;
-use crate::config::Config;
-use crate::dispatchers::{Dispatcher, dispatch_task};
 use gpm::sgcp;
 use log::*;
-use std::time::Duration;
 use tokio::time::interval;
 
-// TODO: refactor
+use super::EmgDispatcher;
+use crate::ManagerChannelMap;
+use crate::config::Config;
+use crate::dispatchers::Dispatcher;
+use crate::dispatchers::dispatch_task;
+
 
 impl Dispatcher for EmgDispatcher {
     async fn run(manager_channel_map: ManagerChannelMap) {
-        // init
-        init_tasks(manager_channel_map.clone()).await;
-
         let emg_config = Config::global()
             .dispatcher
             .emg
@@ -22,6 +20,21 @@ impl Dispatcher for EmgDispatcher {
             .expect("Expected EMG config to be defined");
 
         let mut emg_idle = interval(Duration::from_millis(emg_config.sampling_speed_ms)); // 1000 ms for 1 Hz sampling rate for idle tasks, 2 ms for 500 Hz sampling rate
+
+        let mut emg_dispatcher = EmgDispatcher;
+
+        let send_channel_map = manager_channel_map.clone();
+        loop {
+            emg_dispatcher.process_idle_task(&send_channel_map).await;
+
+            _ = emg_idle.tick();
+        }
+    }
+}
+
+impl EmgDispatcher {
+    /// Handles idle responses for a given resource and task code mapping
+    async fn handle_idle_response(&self, response: &str, manager_channel_map: &ManagerChannelMap) {
         let emg_response_mapping = vec![
             (
                 "OPEN HAND".to_string(),
@@ -34,83 +47,45 @@ impl Dispatcher for EmgDispatcher {
                 sgcp::Resource::Maestro,
             ),
         ];
-        // let mut HAPTICS_idle = interval(Duration::from_millis(1000)); // 1 Hz sampling rate // example for haptics
-        let send_channel_map = manager_channel_map.clone();
-        loop {
-            tokio::select! {
-                _ = emg_idle.tick() => {
-                    process_idle_task(&send_channel_map, sgcp::Resource::Emg, "IDLE", &emg_response_mapping).await;
-                }
-                // _ = HAPTICS_idle.tick() => {
-                //     // handle haptics idle task here
-                // }
+
+        if let Some((task_code, resource)) = emg_response_mapping
+            .iter()
+            .find(|(resp, _, _)| resp == response)
+            .map(|(_, task_code, resource)| (task_code.clone(), *resource))
+        {
+            let request = sgcp::Request {
+                resource: resource as i32,
+                task_code,
+                task_data: None,
+            };
+
+            // dispatch request to maestro to execute action based on EMG response
+            match dispatch_task(request, manager_channel_map).await {
+                Ok(res) => info!("Task succeeded: {:?}", res),
+                Err(e) => error!("Task failed: {:?}", e),
             }
+        } else {
+            error!("Unexpected response: {}", response);
         }
     }
-}
 
-/// Handles idle responses for a given resource and task code mapping
-async fn handle_idle_response(
-    response: &str,
-    manager_channel_map: &ManagerChannelMap,
-    response_mapping: &[(String, String, sgcp::Resource)],
-) {
-    if let Some((task_code, resource)) = response_mapping
-        .iter()
-        .find(|(resp, _, _)| resp == response)
-        .map(|(_, task_code, resource)| (task_code.clone(), *resource))
-    {
+    /// Processes idle tasks for a given resource
+    pub async fn process_idle_task(&mut self, manager_channel_map: &ManagerChannelMap) {
         let request = sgcp::Request {
-            resource: resource as i32,
-            task_code,
+            resource: sgcp::Resource::Emg as i32,
+            task_code: "IDLE".to_string(),
             task_data: None,
         };
-
+        // dispatch request to EMG to process idle tasks
         match dispatch_task(request, manager_channel_map).await {
-            Ok(res) => info!("Task succeeded: {:?}", res),
-            Err(e) => error!("Task failed: {:?}", e),
+            Ok(res) => {
+                self.handle_idle_response(res.as_str(), manager_channel_map)
+                    .await
+            },
+            Err(err) => {
+                error!("An error occurred when dispatching task; error={err}");
+                log::error!("Failed to dispatch maintenance task: {:?}", err);
+            },
         }
-    } else {
-        error!("Unexpected response: {}", response);
-    }
-}
-
-/// Processes idle tasks for a given resource
-async fn process_idle_task(
-    manager_channel_map: &ManagerChannelMap,
-    resource: sgcp::Resource,
-    task_code: &str,
-    response_mapping: &[(String, String, sgcp::Resource)],
-) {
-    let request = sgcp::Request {
-        resource: resource as i32,
-        task_code: task_code.to_string(),
-        task_data: None,
-    };
-
-    match dispatch_task(request, manager_channel_map).await {
-        Ok(res) => handle_idle_response(res.as_str(), manager_channel_map, response_mapping).await,
-        Err(err) => {
-            error!("An error occurred when dispatching task; error={err}");
-            log::error!("Failed to dispatch maintenance task: {:?}", err);
-        },
-    }
-}
-
-async fn init_tasks(manager_channel_map: ManagerChannelMap) {
-    // TODO: Do we need this? Resources already have an init function
-    // run initialization tasks
-    let init_request = sgcp::Request {
-        resource: sgcp::Resource::Emg as i32,
-        task_code: "CALIBRATE".to_string(),
-        task_data: None,
-    };
-
-    // can also add maestro init, move all motors to home position, 0
-    let init_map = manager_channel_map.clone();
-
-    match dispatch_task(init_request, &init_map).await {
-        Ok(_) => info!("Initialization sucess"),
-        Err(err) => error!("Initialization failed: {:?}", err),
     }
 }

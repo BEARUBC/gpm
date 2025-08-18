@@ -2,8 +2,9 @@ use anyhow::Error;
 use anyhow::Result;
 use anyhow::anyhow;
 use gpm::not_on_pi;
-use gpm::sgcp::maestro::Task as MaestroTask;
-use gpm::sgcp::request::TaskData::MaestroData;
+use gpm::sgcp;
+use gpm::sgcp::fsr::Task as FsrTask;
+use gpm::sgcp::request::TaskData::FsrData;
 use log::*;
 
 use crate::managers::Manager;
@@ -11,29 +12,28 @@ use crate::managers::ManagerChannelData;
 use crate::managers::ResourceManager;
 use crate::managers::TASK_SUCCESS;
 use crate::managers::macros::parse_channel_data;
-use crate::resources::maestro::Maestro;
+use crate::resources::fsr::Fsr;
 
-impl ResourceManager for Manager<Maestro> {
-    type ResourceType = Maestro;
+impl ResourceManager for Manager<Fsr> {
+    type ResourceType = Fsr;
 
-    /// Handles all Maestro-related tasks
     async fn handle_task(&mut self, channel_data: ManagerChannelData) -> Result<()> {
-        let (task, _, send_channel) =
-            parse_channel_data!(channel_data, MaestroTask, MaestroData).map_err(|e: Error| e)?;
+        let (task, _task_data, send_channel) =
+            parse_channel_data!(channel_data, FsrTask, FsrData).map_err(|e: Error| e)?;
 
-        let task_result = match task {
-            MaestroTask::UndefinedTask => {
+        let task_result: Result<String, Error> = match task {
+            FsrTask::UndefinedTask => {
                 warn!("Encountered an undefined task type");
                 Err(Error::msg("Encountered an undefined task type"))
             },
             _ => {
                 not_on_pi!();
-                Ok(())
+                Ok(TASK_SUCCESS.to_string())
             },
         };
 
         let response = match task_result {
-            Ok(_) => TASK_SUCCESS.to_string(),
+            Ok(message) => message,
             Err(e) => format!("Error: {e}"),
         };
 

@@ -1,15 +1,19 @@
+pub mod bio_signal;
 pub mod emg;
+pub mod fsr;
 pub mod gpio;
 mod macros;
 pub mod tcp;
 
-use crate::ManagerChannelMap;
-use crate::managers::ManagerChannelData;
+
 use anyhow::Error;
 use anyhow::Result;
 use gpm::sgcp;
 use log::info;
 use tokio::sync::oneshot;
+
+use crate::ManagerChannelMap;
+use crate::managers::ManagerChannelData;
 
 pub trait Dispatcher {
     async fn run(manager_channel_map: ManagerChannelMap);
