@@ -29,6 +29,8 @@ impl ResourceManager for Manager<Emg> {
                 not_on_pi!();
                 Ok(TASK_SUCCESS.to_string())
             },
+            Task::Calibrate => todo!(),
+            Task::Export => todo!(),
             Task::Abort => {
                 not_on_pi!();
                 Ok(TASK_SUCCESS.to_string())

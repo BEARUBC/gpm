@@ -19,8 +19,8 @@ impl Dispatcher for BioSignalDispatcher {
             .expect("Bio Signal config should be defined.");
         let mut emg_dispatcher = EmgDispatcher;
         let mut fsr_dispatcher = FsrDispatcher;
-        let mut emg_idle = interval(Duration::from_millis(0));
-        let mut fsr_idle = interval(Duration::from_millis(0));
+        let mut emg_idle = interval(Duration::from_millis(1));
+        let mut fsr_idle = interval(Duration::from_millis(1));
 
         // for each sensor get their config for their pause interval
         for sensor in &bio_signal_config.sensors {
@@ -31,7 +31,7 @@ impl Dispatcher for BioSignalDispatcher {
                         .emg
                         .as_ref()
                         .expect("Emg config should be defined.");
-
+                    info!("EMG sampling speed: {:?}", emg_config.sampling_speed_ms);
                     emg_idle = interval(Duration::from_millis(emg_config.sampling_speed_ms))
                 },
                 "fsr" => {
@@ -40,7 +40,7 @@ impl Dispatcher for BioSignalDispatcher {
                         .fsr
                         .as_ref()
                         .expect("Emg config should be defined.");
-
+                    info!("FSR pause duration: {:?}", fsr_config.pause_duration_ms);
                     fsr_idle = interval(Duration::from_millis(fsr_config.pause_duration_ms))
                 },
 

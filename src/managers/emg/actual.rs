@@ -34,6 +34,21 @@ impl ResourceManager for Manager<Emg> {
                 let adc_values = self.resource.read_adc_channels(&[0, 1])?;
                 info!("EMG ADC Channel 0,1 value: {:?}", adc_values);
 
+                loop { // loops to fill EMG buffer for processing
+                    if !self.resource.emg_processor_inner.window_filled || !self.resource.emg_processor_outer.window_filled {
+                        let adc_values = self.resource.read_adc_channels(&[0, 1])?;
+                        if let Some(_processed_inner) = self.resource.emg_processor_inner.process_sample(adc_values[0]) {
+                            info!("Inner EMG window filled");
+                        }
+                        if let Some(_processed_outer) = self.resource.emg_processor_outer.process_sample(adc_values[1]) {
+                            info!("Outer EMG window filled");
+                        }
+                    } else {
+                        info!("EMG ADC Channel 0,1 value: {:?}", adc_values);
+                        break;
+                    }
+                }
+                
                 let grip_state = self.resource.process_data(adc_values)?;
                 info!("Grip state: {:?}", grip_state);
 
@@ -45,6 +60,25 @@ impl ResourceManager for Manager<Emg> {
                     Ok("CLOSE HAND".to_string())
                 }
             },
+            Task::Calibrate => {
+                Emg::calibrate_emg(&mut self.resource)?;
+                info!("EMG Calibrated. Inner Threshold: {}, Outer Threshold: {}", self.resource.inner_threshold, self.resource.outer_threshold);
+                Ok(TASK_SUCCESS.to_string())
+            },
+            Task::Export => {
+                let emg_data = self.resource.get_current();
+
+                match serde_json::to_string(&emg_data) {
+                    Ok(json) => {
+                        info!("EMG ADC Data JSON: {}", json);
+                        Ok(json) // return JSON string instead of "TASK_SUCCESS"
+                    }
+                    Err(e) => {
+                        warn!("Failed to serialize EMG data: {}", e);
+                        Err(anyhow!("Serialization failed: {}", e))
+                    }
+                }
+            }
             Task::Abort => {
                 info!("Aborting EMG task");
                 Ok(TASK_SUCCESS.to_string())
