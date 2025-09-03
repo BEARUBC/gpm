@@ -19,6 +19,9 @@ impl Resource for Emg {
 }
 
 impl Emg {
+    // MOCK -- FOR EMG VISUALIZATION
+    // TODO:Define a trait to provide a uniform interface to provide EMG (ADC) data to the EMG
+    // exporter
     pub fn read_adc() -> EmgData {
         let mut rng = rand::rng();
         EmgData {

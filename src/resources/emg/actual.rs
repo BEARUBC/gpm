@@ -21,6 +21,7 @@ use super::EmgData;
 use crate::config::Config;
 use crate::resources::Resource;
 use crate::resources::common::Adc;
+use crate::resources::emg::EmgProcessor;
 
 pub struct Emg {
     pub adc: Adc,
@@ -30,6 +31,8 @@ pub struct Emg {
     pub prev_grip_state: i32,
     pub inter_channel_sample_duration: u64, /* different from sampling speed, this is the time
                                              * between reading the inner and outer channels */
+    pub emg_processor_outer: EmgProcessor,
+    pub emg_processor_inner: EmgProcessor,
 }
 
 impl Resource for Emg {
@@ -41,6 +44,9 @@ impl Resource for Emg {
             .expect("Expected emg config to be defined");
 
         let adc = Adc::init(emg_config.cs_pin, emg_config.clock_speed);
+        
+        let mut processor_outer = EmgProcessor::new(1000.0, 60.0, 20.0, 450.0, 20);
+        let mut processor_inner = EmgProcessor::new(1000.0, 60.0, 20.0, 450.0, 20);
 
         let mut emg = Emg {
             adc,
@@ -49,6 +55,8 @@ impl Resource for Emg {
             outer_threshold: 0,
             prev_grip_state: 0,
             inter_channel_sample_duration: emg_config.pause_duration_ms,
+            emg_processor_outer: processor_outer,
+            emg_processor_inner: processor_inner,
         };
 
         if let Err(_) = Emg::calibrate_emg(&mut emg) {
@@ -64,18 +72,6 @@ impl Resource for Emg {
 }
 
 impl Emg {
-    // MOCK -- FOR EMG VISUALIZATION
-    // TODO:Define a trait to provide a uniform interface to provide EMG (ADC) data to the EMG
-    // exporter
-    pub fn read_adc() -> EmgData {
-        let mut rng = rand::rng();
-        EmgData {
-            channel_0: rng.random_range(-1.0..1.0),
-            channel_1: rng.random_range(-0.5..0.5),
-            timestamp: Utc::now().timestamp_millis() as u64,
-        }
-    }
-
     pub fn process_data(&mut self, values: Vec<u16>) -> Result<i32> {
         const OPEN_FIST: i32 = 1;
         const CLOSE_FIST: i32 = 0;
@@ -95,6 +91,7 @@ impl Emg {
         }
     }
 
+    // todo: improve calibration by filtering
     pub fn calibrate_emg(&mut self) -> Result<()> {
         let inner_buffer = self.read_samples(0, "inner");
 

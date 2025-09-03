@@ -13,9 +13,9 @@ pin = 2
 sensors = ["emg", "fsr"]
 
 [dispatcher.emg]
-buffer_size = 100
+buffer_size = 256
 pause_duration_ms = 500
-sampling_speed_ms = 1000
+sampling_speed_ms = 1
 cs_pin = 17
 clock_speed = 500000
 
