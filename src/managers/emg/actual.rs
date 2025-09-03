@@ -48,7 +48,6 @@ impl ResourceManager for Manager<Emg> {
                     }
                 }
                 
-                // todo update processing function
                 let grip_state = self.resource.process_data(adc_values)?;
                 info!("Grip state: {:?}", grip_state);
 
@@ -60,7 +59,11 @@ impl ResourceManager for Manager<Emg> {
                     Ok("CLOSE HAND".to_string())
                 }
             },
-            Task::Calibrate => todo!(),
+            Task::Calibrate => {
+                Emg::calibrate_emg(&mut self.resource)?;
+                info!("EMG Calibrated. Inner Threshold: {}, Outer Threshold: {}", self.resource.inner_threshold, self.resource.outer_threshold);
+                Ok(TASK_SUCCESS.to_string())
+            },
             Task::Abort => {
                 info!("Aborting EMG task");
                 Ok(TASK_SUCCESS.to_string())

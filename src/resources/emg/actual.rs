@@ -33,6 +33,8 @@ pub struct Emg {
                                              * between reading the inner and outer channels */
     pub emg_processor_outer: EmgProcessor,
     pub emg_processor_inner: EmgProcessor,
+    pub open_counter : usize,
+    pub close_counter : usize,  
 }
 
 impl Resource for Emg {
@@ -75,20 +77,38 @@ impl Emg {
     pub fn process_data(&mut self, values: Vec<u16>) -> Result<i32> {
         const OPEN_FIST: i32 = 1;
         const CLOSE_FIST: i32 = 0;
+        const HOLD: usize = 5; 
+
         if values.len() != 2 {
             return Err(Error::msg("Expected 2 EMG values"));
         }
 
         if values[0] >= self.inner_threshold && values[1] <= self.outer_threshold {
-            self.prev_grip_state = OPEN_FIST;
-            Ok(OPEN_FIST)
-        } else if values[0] <= self.inner_threshold && values[1] >= self.outer_threshold {
-            self.prev_grip_state = CLOSE_FIST;
-            Ok(CLOSE_FIST)
-        } else {
-            info!("EMG values are out of expected range. Falling back to previous action.");
-            Ok(self.prev_grip_state)
+            self.open_counter += 1;
+            self.close_counter = 0;
+    
+            if self.open_counter >= HOLD_TIME {
+                self.prev_grip_state = OPEN_FIST;
+                return Ok(OPEN_FIST);
+            }
+        } 
+        else if values[0] <= self.inner_threshold && values[1] >= self.outer_threshold {
+            self.close_counter += 1;
+            self.open_counter = 0;
+    
+            if self.close_counter >= HOLD_TIME {
+                self.prev_grip_state = CLOSE_FIST;
+                return Ok(CLOSE_FIST);
+            }
+        } 
+        else {
+            // Reset counters if neither condition met
+            self.open_counter = 0;
+            self.close_counter = 0;
+
+            info!("EMG values out of expected range. Holding previous action.");
         }
+        Ok(self.prev_grip_state)
     }
 
     // todo: improve calibration by filtering
