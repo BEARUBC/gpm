@@ -21,7 +21,7 @@ use super::EmgData;
 use crate::config::Config;
 use crate::resources::Resource;
 use crate::resources::common::Adc;
-use crate::resources::emg::EmgProcessor;
+use crate::resources::emg::emgprocessor::EmgProcessor;
 
 pub struct Emg {
     pub adc: Adc,
@@ -59,6 +59,8 @@ impl Resource for Emg {
             inter_channel_sample_duration: emg_config.pause_duration_ms,
             emg_processor_outer: processor_outer,
             emg_processor_inner: processor_inner,
+            open_counter: 0,
+            close_counter: 0,
         };
 
         if let Err(_) = Emg::calibrate_emg(&mut emg) {
@@ -77,7 +79,7 @@ impl Emg {
     pub fn process_data(&mut self, values: Vec<u16>) -> Result<i32> {
         const OPEN_FIST: i32 = 1;
         const CLOSE_FIST: i32 = 0;
-        const HOLD: usize = 5; 
+        const HOLD_TIME: usize = 5; 
 
         if values.len() != 2 {
             return Err(Error::msg("Expected 2 EMG values"));
