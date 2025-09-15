@@ -47,8 +47,8 @@ impl Resource for Emg {
 
         let adc = Adc::init(emg_config.cs_pin, emg_config.clock_speed);
         
-        let mut processor_outer = EmgProcessor::new(1000.0, 60.0, 20.0, 450.0, 20);
-        let mut processor_inner = EmgProcessor::new(1000.0, 60.0, 20.0, 450.0, 20);
+        let processor_outer = EmgProcessor::new(1000.0, 60.0, 20.0, 450.0, 20);
+        let processor_inner = EmgProcessor::new(1000.0, 60.0, 20.0, 450.0, 20);
 
         let mut emg = Emg {
             adc,

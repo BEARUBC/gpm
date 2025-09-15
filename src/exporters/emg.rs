@@ -65,13 +65,7 @@ async fn handle_connection(stream: TcpStream, interval_duration: Duration) {
     loop {
         interval.tick().await;
 
-        let json_string = match to_string(&Emg::read_adc()) {
-            Ok(s) => s,
-            Err(e) => {
-                warn!("Failed to serialize EMG data: {}", e);
-                continue;
-            },
-        };
+        let json_string = "test"; // Replaced due to bugs during emg testing, will put back og implementation after
 
         let payload = format!("{}\n", json_string);
 
