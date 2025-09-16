@@ -25,7 +25,7 @@ num_fsrs = 1
 cs_pins = [13]
 clock_speed = 500000
 at_rest_threshold = 990
-presure_threshold = 90
+pressure_threshold = 90
 
 [telemetry]
 address = "0.0.0.0:9999"
