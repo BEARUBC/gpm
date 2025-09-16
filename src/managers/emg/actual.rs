@@ -31,16 +31,18 @@ impl ResourceManager for Manager<Emg> {
                 Err(Error::msg("Encountered an undefined task type"))
             },
             Task::Idle => {
-                let adc_values = self.resource.read_adc_channels(&[0, 1])?;
+                let mut adc_values = self.resource.read_adc_channels(&[0, 1])?;
                 info!("EMG ADC Channel 0,1 value: {:?}", adc_values);
 
                 loop { // loops to fill EMG buffer for processing
                     if !self.resource.emg_processor_inner.window_filled || !self.resource.emg_processor_outer.window_filled {
-                        let adc_values = self.resource.read_adc_channels(&[0, 1])?;
-                        if let Some(_processed_inner) = self.resource.emg_processor_inner.process_sample(adc_values[0]) {
+                        adc_values = self.resource.read_adc_channels(&[0, 1])?;
+                        if let Some(processed_inner) = self.resource.emg_processor_inner.process_sample(adc_values[0]) {
+                            adc_values[0] = processed_inner;
                             info!("Inner EMG window filled");
                         }
-                        if let Some(_processed_outer) = self.resource.emg_processor_outer.process_sample(adc_values[1]) {
+                        if let Some(processed_outer) = self.resource.emg_processor_outer.process_sample(adc_values[1]) {
+                            adc_values[1] = processed_outer;
                             info!("Outer EMG window filled");
                         }
                     } else {
@@ -48,6 +50,9 @@ impl ResourceManager for Manager<Emg> {
                         break;
                     }
                 }
+
+                self.resource.current_channel_0 = adc_values[0] as f32;
+                self.resource.current_channel_1 = adc_values[1] as f32;
                 
                 let grip_state = self.resource.process_data(adc_values)?;
                 info!("Grip state: {:?}", grip_state);

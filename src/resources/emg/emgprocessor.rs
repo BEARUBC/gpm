@@ -58,7 +58,7 @@ impl EmgProcessor {
 
     /// Process a single new sample from ADC
     /// Returns Some(processed_value) only after window is full
-    pub fn process_sample(&mut self, raw_adc: u16) -> Option<f32> {
+    pub fn process_sample(&mut self, raw_adc: f32) -> Option<f32> {
         // Convert ADC 8-bit value (0-255) to -1.0..1.0
         let mut sample = (raw_adc as f32 - 512.0) / 512.0;
 

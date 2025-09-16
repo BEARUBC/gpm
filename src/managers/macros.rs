@@ -17,14 +17,32 @@ macro_rules! parse_channel_data {
 
 /// Provides boilerplate to initialize a resource manager and run it in its own (green) thread
 macro_rules! init_resource_managers {
-    {$($resource:expr => $variant:expr),*} => {{
-        let mut map = HashMap::new();
+    {$($resource:expr => $manager_arc:expr),*} => {{
+        use std::sync::Arc;
+
+        let mut map = std::collections::HashMap::new();
+
         $(
             info!("Initialising {:?} resource manager task", $resource.as_str_name());
-            let mut manager = $variant;
-            map.insert($resource.as_str_name().to_string(), manager.tx());
-            tokio::spawn(async move { manager.run().await; });
+
+            // clone the Arc so we can lock later
+            let manager_clone = Arc::clone(&$manager_arc);
+
+            // spawn an async block to extract tx and run the manager
+            let tx = {
+                let mgr = manager_clone.lock().await; // lock to access tx
+                mgr.tx.clone()
+            };
+            map.insert($resource.as_str_name().to_string(), tx);
+
+            // spawn the manager task
+            let manager_clone = Arc::clone(&$manager_arc);
+            tokio::spawn(async move {
+                let mut manager = manager_clone.lock().await;
+                manager.run().await;
+            });
         )*
+
         map
     }};
 }

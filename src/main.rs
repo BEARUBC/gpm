@@ -5,7 +5,7 @@ mod managers;
 mod resources;
 
 use std::collections::HashMap;
-
+use std::sync::{Arc};
 use config::CommandDispatchStrategy;
 use config::Config;
 use dispatchers::Dispatcher;
@@ -14,6 +14,7 @@ use dispatchers::emg::EmgDispatcher;
 use dispatchers::fsr::FsrDispatcher;
 use dispatchers::gpio::GpioDispatcher;
 use dispatchers::tcp::TcpDispatcher;
+use gpm::sgcp::bms;
 use log::*;
 use managers::HasMpscChannel;
 use managers::Manager;
@@ -24,6 +25,7 @@ use resources::emg::Emg;
 use resources::fsr::Fsr;
 use resources::maestro::Maestro;
 use tokio::sync::mpsc::Sender;
+use tokio::sync::Mutex;
 
 
 /// Represents the mapping between resource manager keys and the tx component
@@ -36,12 +38,18 @@ async fn main() {
     console_subscriber::init(); // Used for Tokio runtime diagnostics
     config::logger_init();
 
+    //init managers outside of macro so we can pass it to the exporter
+    let bms_manager = Arc::new(Mutex::new(Manager::<Bms>::new()));
+    let emg_manager = Arc::new(Mutex::new(Manager::<Emg>::new()));
+    let maestro_manager = Arc::new(Mutex::new(Manager::<Maestro>::new()));
+    let fsr_manager = Arc::new(Mutex::new(Manager::<Fsr>::new()));
+
     // Initialize resource managers and their communication channels.
     let manager_channel_map = managers::macros::init_resource_managers! {
-        gpm::sgcp::Resource::Bms => Manager::<Bms>::new(),
-        gpm::sgcp::Resource::Emg => Manager::<Emg>::new(),
-        gpm::sgcp::Resource::Maestro => Manager::<Maestro>::new(),
-        gpm::sgcp::Resource::Fsr => Manager::<Fsr>::new()
+        gpm::sgcp::Resource::Bms => Arc::clone(&bms_manager),
+        gpm::sgcp::Resource::Emg => Arc::clone(&emg_manager),
+        gpm::sgcp::Resource::Maestro => Arc::clone(&maestro_manager),
+        gpm::sgcp::Resource::Fsr => Arc::clone(&fsr_manager)
     };
 
     tokio::spawn(async {
@@ -50,7 +58,7 @@ async fn main() {
     });
 
     tokio::spawn(async {
-        let exporter = exporters::emg::Exporter::new();
+        let exporter = exporters::emg::Exporter::new(emg_manager);
         exporter.init().await
     });
 

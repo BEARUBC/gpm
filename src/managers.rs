@@ -69,6 +69,9 @@ impl<S: Resource> Manager<S> {
             resource: S::init(),
         }
     }
+    pub fn get_resource(&self) -> &S {
+        &self.resource
+    }
 }
 
 impl<S: Resource> HasMpscChannel for Manager<S> {

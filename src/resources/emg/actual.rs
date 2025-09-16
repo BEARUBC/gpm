@@ -26,8 +26,8 @@ use crate::resources::emg::emgprocessor::EmgProcessor;
 pub struct Emg {
     pub adc: Adc,
     pub buffer_size: usize,
-    pub inner_threshold: u16,
-    pub outer_threshold: u16,
+    pub inner_threshold: f32,
+    pub outer_threshold: f32,
     pub prev_grip_state: i32,
     pub inter_channel_sample_duration: u64, /* different from sampling speed, this is the time
                                              * between reading the inner and outer channels */
@@ -35,6 +35,8 @@ pub struct Emg {
     pub emg_processor_inner: EmgProcessor,
     pub open_counter : usize,
     pub close_counter : usize,  
+    pub current_channel_0: f32,
+    pub current_channel_1: f32,
 }
 
 impl Resource for Emg {
@@ -53,14 +55,16 @@ impl Resource for Emg {
         let mut emg = Emg {
             adc,
             buffer_size: emg_config.buffer_size,
-            inner_threshold: 0,
-            outer_threshold: 0,
+            inner_threshold: 0.0,
+            outer_threshold: 0.0,
             prev_grip_state: 0,
             inter_channel_sample_duration: emg_config.pause_duration_ms,
             emg_processor_outer: processor_outer,
             emg_processor_inner: processor_inner,
             open_counter: 0,
             close_counter: 0,
+            current_channel_0: 0.0,
+            current_channel_1: 0.0,
         };
 
         if let Err(_) = Emg::calibrate_emg(&mut emg) {
@@ -76,7 +80,7 @@ impl Resource for Emg {
 }
 
 impl Emg {
-    pub fn process_data(&mut self, values: Vec<u16>) -> Result<i32> {
+    pub fn process_data(&mut self, values: Vec<f32>) -> Result<i32> {
         const OPEN_FIST: i32 = 1;
         const CLOSE_FIST: i32 = 0;
         const HOLD_TIME: usize = 5; 
@@ -127,12 +131,12 @@ impl Emg {
 
         let avg_inner = Adc::average_values(inner_buffer.as_ref()).unwrap_or_else(|e| {
             info!("Error calculating average for inner buffer: {}", e);
-            0
+            0.0
         });
 
         let avg_outer = Adc::average_values(outer_buffer.as_ref()).unwrap_or_else(|e| {
             info!("Error calculating average for outer buffer: {}", e);
-            0
+            0.0
         });
         self.inner_threshold = avg_inner;
         self.outer_threshold = avg_outer;
@@ -140,7 +144,16 @@ impl Emg {
         Ok(())
     }
 
-    pub fn read_samples(&mut self, channel: u8, label: &str) -> Vec<u16> {
+    // send adc values to exporter
+    pub fn read_adc(&self) -> EmgData {
+        EmgData {
+            channel_0: self.current_channel_0 as f64,
+            channel_1: self.current_channel_1 as f64,
+            timestamp: Utc::now().timestamp_millis() as u64,
+        }
+    }
+
+    pub fn read_samples(&mut self, channel: u8, label: &str) -> Vec<f32> {
         let calibrate_buffer_size = 100;
         let mut buffer = Vec::with_capacity(calibrate_buffer_size);
         info!("Flex {label}");
@@ -159,7 +172,7 @@ impl Emg {
         buffer
     }
 
-    pub fn read_adc_channels(&mut self, channels: &[u8]) -> Result<Vec<u16>> {
+    pub fn read_adc_channels(&mut self, channels: &[u8]) -> Result<Vec<f32>> {
         self.adc.read_channels(channels)
     }
 }

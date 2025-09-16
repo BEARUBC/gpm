@@ -3,22 +3,24 @@
 use anyhow::{Context, Result};
 use log::{error, info, warn};
 use serde_json::to_string;
-use std::time::Duration;
+use std::{sync::Mutex, time::Duration};
 use tokio::{
     io::{AsyncWriteExt, BufWriter},
     net::{TcpListener, TcpStream},
     time::interval,
 };
-
-use crate::{config::Config, resources::emg::Emg};
+use std::sync::Arc;
+use tokio::sync::Mutex as TokioMutex;
+use crate::{config::Config, resources::emg::Emg, managers::Manager};
 
 pub struct Exporter {
     address: String,
     interval_duration: Duration,
+    manager: Arc<TokioMutex<Manager<Emg>>>,
 }
 
 impl Exporter {
-    pub fn new() -> Self {
+    pub fn new(emg_manager: Arc<TokioMutex<Manager<Emg>>>) -> Self {
         // ew
         let emg_telemetry_config = Config::global()
             .telemetry
@@ -31,6 +33,7 @@ impl Exporter {
         Exporter {
             address: emg_telemetry_config.address.clone(),
             interval_duration: Duration::from_millis(emg_telemetry_config.tick_interval_in_millis),
+            manager: emg_manager,
         }
     }
 
@@ -52,20 +55,29 @@ impl Exporter {
             };
 
             info!("Accepted new connection from: {}", client_addr);
-            tokio::spawn(handle_connection(stream, self.interval_duration));
+
+            let manager_clone = self.manager.clone(); // clone Arc
+            let interval_duration = self.interval_duration;
+
+            tokio::spawn(handle_connection(manager_clone, stream, interval_duration));
         }
     }
 }
 
 /// Handles an individual client connection.
-async fn handle_connection(stream: TcpStream, interval_duration: Duration) {
+async fn handle_connection(manager: Arc<TokioMutex<Manager<Emg>>>, stream: TcpStream, interval_duration: Duration) {
     let mut writer = BufWriter::new(stream);
     let mut interval = interval(interval_duration);
 
     loop {
         interval.tick().await;
 
-        let json_string = match to_string(&Emg::read_adc()) {
+        let emg_data = {
+            let manager = manager.lock().await;
+            manager.get_resource().read_adc()
+        };
+
+        let json_string = match to_string(&emg_data) {
             Ok(s) => s,
             Err(e) => {
                 warn!("Failed to serialize EMG data: {}", e);

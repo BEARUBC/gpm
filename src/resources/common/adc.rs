@@ -33,7 +33,7 @@ impl Adc {
     // Reads the 10-bit ADC value from a given channel (0–7) on the MCP3008 via SPI.
     // MCP3008 messaging protocol: 3 byte message structure
     // doc link: https://www.mathworks.com/help/matlab/supportpkg/analog-input-using-spi.html
-    pub fn read_channel(&mut self, channel: u8) -> Result<u16> {
+    pub fn read_channel(&mut self, channel: u8) -> Result<f32> {
         if channel > 7 {
             return Err(Error::msg(format!(
                 "Invalid ADC channel: {}. Must be between 0 and 7.",
@@ -73,10 +73,10 @@ impl Adc {
         // bits by combining them with bitwise OR
         let result = ((rx[1] & 0b00000011) as u16) << 8 | (rx[2] as u16);
 
-        Ok(result)
+        Ok(result as f32)
     }
 
-    pub fn read_channels(&mut self, channels: &[u8]) -> Result<Vec<u16>> {
+    pub fn read_channels(&mut self, channels: &[u8]) -> Result<Vec<f32>> {
         channels
             .iter()
             .map(|&channel| {
@@ -87,12 +87,12 @@ impl Adc {
     }
 
     // Averages ADC readings
-    pub fn average_values(list: &Vec<u16>) -> Result<u16> {
+    pub fn average_values(list: &Vec<f32>) -> Result<f32> {
         if list.is_empty() {
-            return Err(Error::msg("Cannot calculate average of an empty list"));
+            Err(Error::msg("Cannot calculate average of an empty list"))
         } else {
-            let sum: u32 = list.iter().map(|&x| x as u32).sum();
-            Ok((sum / list.len() as u32) as u16)
+            let sum: f32 = list.iter().copied().sum();
+            Ok(sum / list.len() as f32)
         }
     }
 }

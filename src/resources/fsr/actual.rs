@@ -60,7 +60,7 @@ impl Fsr {
 
 
                 // if at least one of the channels crossed the threshold, turn on vibrate
-                if value < self.at_rest_threshold {
+                if value < self.at_rest_threshold as f32 {
                     result |= VIBRATE_ON;
                 } else {
                     result |= VIBRATE_OFF;
