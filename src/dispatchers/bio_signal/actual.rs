@@ -40,7 +40,7 @@ impl Dispatcher for BioSignalDispatcher {
                         .fsr
                         .as_ref()
                         .expect("Emg config should be defined.");
-                    info!("FSR sampling speed: {:?}", fsr_config.sampling_speed_ms);
+                    info!("FSR pause duration: {:?}", fsr_config.pause_duration_ms);
                     fsr_idle = interval(Duration::from_millis(fsr_config.pause_duration_ms))
                 },
 
