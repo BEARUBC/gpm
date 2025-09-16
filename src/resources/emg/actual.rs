@@ -141,12 +141,16 @@ impl Emg {
     }
 
     pub fn read_samples(&mut self, channel: u8, label: &str) -> Vec<u16> {
-        let mut buffer = Vec::with_capacity(self.buffer_size);
+        let calibrate_buffer_size = 100;
+        let mut buffer = Vec::with_capacity(calibrate_buffer_size);
         info!("Flex {label}");
 
-        while buffer.len() < self.buffer_size {
+        while buffer.len() < calibrate_buffer_size {
             match self.adc.read_channel(channel) {
-                Ok(value) => buffer.push(value),
+                Ok(value) => {
+                    info!("Channel {channel} SPI value: {value}");
+                    buffer.push(value);
+                },
                 Err(_) => info!("Error reading SPI on channel {channel} during {label}"),
             }
             thread::sleep(Duration::from_millis(self.inter_channel_sample_duration));

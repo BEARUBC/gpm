@@ -44,6 +44,7 @@ impl ResourceManager for Manager<Emg> {
                             info!("Outer EMG window filled");
                         }
                     } else {
+                        info!("EMG ADC Channel 0,1 value: {:?}", adc_values);
                         break;
                     }
                 }
