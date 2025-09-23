@@ -35,6 +35,8 @@ pub struct Emg {
     pub emg_processor_inner: EmgProcessor,
     pub open_counter : usize,
     pub close_counter : usize,  
+    pub current_channel_0: f32,
+    pub current_channel_1: f32,
 }
 
 impl Resource for Emg {
@@ -61,6 +63,8 @@ impl Resource for Emg {
             emg_processor_inner: processor_inner,
             open_counter: 0,
             close_counter: 0,
+            current_channel_0: 0.0,
+            current_channel_1: 0.0,
         };
 
         if let Err(_) = Emg::calibrate_emg(&mut emg) {
@@ -111,6 +115,15 @@ impl Emg {
             info!("EMG values out of expected range. Holding previous action.");
         }
         Ok(self.prev_grip_state)
+    }
+
+    // send adc values to exporter
+    pub fn get_current(&self) -> EmgData {
+        EmgData {
+            channel_0: self.current_channel_0 as f64,
+            channel_1: self.current_channel_1 as f64,
+            timestamp: Utc::now().timestamp_millis() as u64,
+        }
     }
 
     // todo: improve calibration by filtering

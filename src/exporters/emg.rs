@@ -11,14 +11,15 @@ use tokio::{
 };
 
 use crate::{config::Config, resources::emg::Emg};
-
+type ManagerChannelMap = HashMap<String, Sender<ManagerChannelData>>;
 pub struct Exporter {
     address: String,
     interval_duration: Duration,
+    manager_channel_map: ManagerChannelMap,
 }
 
 impl Exporter {
-    pub fn new() -> Self {
+    pub fn new(manager_channel_map: ManagerChannelMap) -> Self {
         // ew
         let emg_telemetry_config = Config::global()
             .telemetry
@@ -31,6 +32,7 @@ impl Exporter {
         Exporter {
             address: emg_telemetry_config.address.clone(),
             interval_duration: Duration::from_millis(emg_telemetry_config.tick_interval_in_millis),
+            manager_channel_map
         }
     }
 
@@ -52,28 +54,34 @@ impl Exporter {
             };
 
             info!("Accepted new connection from: {}", client_addr);
-            tokio::spawn(handle_connection(stream, self.interval_duration));
+            tokio::spawn(handle_connection(stream, self.interval_duration, self.manager_channel_map));
         }
     }
 }
 
 /// Handles an individual client connection.
-async fn handle_connection(stream: TcpStream, interval_duration: Duration) {
+async fn handle_connection(stream: TcpStream, interval_duration: Duration, manager_channel_map: ManagerChannelMap) {
     let mut writer = BufWriter::new(stream);
     let mut interval = interval(interval_duration);
 
     loop {
         interval.tick().await;
 
-        let json_string = match to_string(&Emg::read_adc()) {
-            Ok(s) => s,
-            Err(e) => {
-                warn!("Failed to serialize EMG data: {}", e);
-                continue;
-            },
+        let request = sgcp::Request {
+            resource: sgcp::Resource::Emg as i32,
+            task_code: "EXPORT".to_string(),
+            task_data: None,
         };
 
-        let payload = format!("{}\n", json_string);
+        let response = match dispatch_task(request, &manager_channel_map).await {
+            Ok(r) => r,
+            Err(e) => {
+                warn!("Failed to dispatch EMG request: {}", e);
+                continue;
+            }
+        };
+
+        let payload = format!("{}\n", response);
 
         if let Err(e) = writer.write_all(payload.as_bytes()).await {
             info!("Connection closed during write: {}", e);

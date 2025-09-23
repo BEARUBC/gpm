@@ -65,6 +65,20 @@ impl ResourceManager for Manager<Emg> {
                 info!("EMG Calibrated. Inner Threshold: {}, Outer Threshold: {}", self.resource.inner_threshold, self.resource.outer_threshold);
                 Ok(TASK_SUCCESS.to_string())
             },
+            Task::Export => {
+                let emg_data = self.resource.get_current(self.resource);
+
+                match serde_json::to_string(&emg_data) {
+                    Ok(json) => {
+                        info!("EMG ADC Data JSON: {}", json);
+                        Ok(json) // return JSON string instead of "TASK_SUCCESS"
+                    }
+                    Err(e) => {
+                        warn!("Failed to serialize EMG data: {}", e);
+                        Err(anyhow!("Serialization failed: {}", e))
+                    }
+                }
+            }
             Task::Abort => {
                 info!("Aborting EMG task");
                 Ok(TASK_SUCCESS.to_string())
