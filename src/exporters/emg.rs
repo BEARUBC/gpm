@@ -63,25 +63,24 @@ impl Exporter {
 async fn handle_connection(stream: TcpStream, interval_duration: Duration, manager_channel_map: ManagerChannelMap) {
     let mut writer = BufWriter::new(stream);
     let mut interval = interval(interval_duration);
-
+    
     loop {
         interval.tick().await;
-
-        let request = sgcp::Request {
-            resource: sgcp::Resource::Emg as i32,
-            task_code: "EXPORT".to_string(),
-            task_data: None,
+        
+        let result = match Config::global().command_dispatch_strategy {
+            CommandDispatchStrategy::Tcp => get_emg_json_direct().await, // Option A: direct call
+            _ => get_emg_json_dispatched(&manager_channel_map).await,    // Option B: dispatched task
         };
 
-        let response = match dispatch_task(request, &manager_channel_map).await {
-            Ok(r) => r,
+        let json_string = match result {
+            Ok(s) => s,
             Err(e) => {
-                warn!("Failed to dispatch EMG request: {}", e);
+                warn!("Skipping EMG tick due to error: {}", e);
                 continue;
             }
         };
 
-        let payload = format!("{}\n", response);
+        let payload = format!("{}\n", json_string);
 
         if let Err(e) = writer.write_all(payload.as_bytes()).await {
             info!("Connection closed during write: {}", e);
@@ -94,4 +93,41 @@ async fn handle_connection(stream: TcpStream, interval_duration: Duration, manag
         }
     }
     info!("Client disconnected.");
+}
+
+/// Dispatcher mode: send request through the resource manager
+pub async fn get_emg_json_dispatched(manager_channel_map: &ManagerChannelMap) -> Result<String> {
+    let request = sgcp::Request {
+        resource: sgcp::Resource::Emg as i32,
+        task_code: "EXPORT".to_string(),
+        task_data: None,
+    };
+
+    match dispatch_task(request, manager_channel_map).await {
+        Ok(response) => {
+            info!("(Dispatched) Got EMG ADC Data JSON: {}", response);
+            Ok(response)
+        }
+        Err(e) => {
+            warn!("(Dispatched) Failed to dispatch EMG request: {}", e);
+            Err(anyhow!("Dispatch failed: {}", e))
+        }
+    }
+}
+
+
+/// Direct mode: call `Emg::read_adc()` directly
+pub async fn get_emg_json_direct() -> Result<String> {
+    let emg_data = Emg::read_adc();
+
+    match to_string(&emg_data) {
+        Ok(json) => {
+            info!("(Direct) EMG ADC Data JSON: {}", json);
+            Ok(json)
+        }
+        Err(e) => {
+            warn!("(Direct) Failed to serialize EMG data: {}", e);
+            Err(anyhow!("Serialization failed: {}", e))
+        }
+    }
 }
