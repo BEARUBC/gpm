@@ -72,8 +72,10 @@ async fn handle_connection(stream: TcpStream, interval_duration: Duration, manag
         interval.tick().await;
         
         let result = match Config::global().command_dispatch_strategy {
-            CommandDispatchStrategy::Tcp => get_emg_json_direct().await, // Option A: direct call
-            _ => get_emg_json_dispatched(&manager_channel_map).await,    // Option B: dispatched task
+            CommandDispatchStrategy::Tcp => {
+            Err(anyhow!("Skip EMG tick in TCP dispatch mode"))
+            }
+            _ => get_emg_json_dispatched(&manager_channel_map).await,
         };
 
         let json_string = match result {
