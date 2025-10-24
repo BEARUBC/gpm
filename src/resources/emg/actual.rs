@@ -140,7 +140,11 @@ impl Emg {
         // --- Step 2: Calibrate activation thresholds ---
         info!("Now calibrating activation thresholds.");
         info!("Press ENTER when you're ready to start inner sampling...");
-        let _ = io::stdin().read_line(&mut String::new());
+        let mut input = String::new();
+        if let Err(e) = io::stdin().read_line(&mut input) {
+            error!("Failed to read input: {}", e);
+            return Err(Error::msg("Failed to read user input for calibration"));
+        }
         let inner_buffer = self.read_samples(0, "inner");
 
         info!("Press ENTER when you're ready to start outer sampling...");
