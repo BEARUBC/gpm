@@ -12,5 +12,5 @@ pub struct EmgData {
     pub channel_1: f64,
     pub timestamp: u64,
 }
-
+pub mod emgprocessor;
 pub use emg_impl::Emg;

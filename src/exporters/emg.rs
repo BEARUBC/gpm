@@ -1,24 +1,29 @@
 //! Tiny EMG Data TCP Exporter
 
-use anyhow::{Context, Result};
+use anyhow::{Context, Result, anyhow};
 use log::{error, info, warn};
 use serde_json::to_string;
-use std::time::Duration;
+use std::{collections::HashMap, time::Duration};
+use crate::{config::CommandDispatchStrategy, managers::ManagerChannelData};
+use crate::dispatchers::dispatch_task;
 use tokio::{
     io::{AsyncWriteExt, BufWriter},
     net::{TcpListener, TcpStream},
     time::interval,
 };
-
+use tokio::sync::mpsc::Sender;
 use crate::{config::Config, resources::emg::Emg};
+use gpm::sgcp;
 
+type ManagerChannelMap = HashMap<String, Sender<ManagerChannelData>>;
 pub struct Exporter {
     address: String,
     interval_duration: Duration,
+    manager_channel_map: ManagerChannelMap,
 }
 
 impl Exporter {
-    pub fn new() -> Self {
+    pub fn new(manager_channel_map: ManagerChannelMap) -> Self {
         // ew
         let emg_telemetry_config = Config::global()
             .telemetry
@@ -31,6 +36,7 @@ impl Exporter {
         Exporter {
             address: emg_telemetry_config.address.clone(),
             interval_duration: Duration::from_millis(emg_telemetry_config.tick_interval_in_millis),
+            manager_channel_map
         }
     }
 
@@ -52,25 +58,32 @@ impl Exporter {
             };
 
             info!("Accepted new connection from: {}", client_addr);
-            tokio::spawn(handle_connection(stream, self.interval_duration));
+            tokio::spawn(handle_connection(stream, self.interval_duration, self.manager_channel_map.clone()));
         }
     }
 }
 
 /// Handles an individual client connection.
-async fn handle_connection(stream: TcpStream, interval_duration: Duration) {
+async fn handle_connection(stream: TcpStream, interval_duration: Duration, manager_channel_map: ManagerChannelMap) {
     let mut writer = BufWriter::new(stream);
     let mut interval = interval(interval_duration);
-
+    
     loop {
         interval.tick().await;
+        
+        let result = match Config::global().command_dispatch_strategy {
+            CommandDispatchStrategy::Tcp => {
+            Err(anyhow!("Skip EMG tick in TCP dispatch mode"))
+            }
+            _ => get_emg_json_dispatched(&manager_channel_map).await,
+        };
 
-        let json_string = match to_string(&Emg::read_adc()) {
+        let json_string = match result {
             Ok(s) => s,
             Err(e) => {
-                warn!("Failed to serialize EMG data: {}", e);
+                warn!("Skipping EMG tick due to error: {}", e);
                 continue;
-            },
+            }
         };
 
         let payload = format!("{}\n", json_string);
@@ -86,4 +99,41 @@ async fn handle_connection(stream: TcpStream, interval_duration: Duration) {
         }
     }
     info!("Client disconnected.");
+}
+
+/// Dispatcher mode: send request through the resource manager
+pub async fn get_emg_json_dispatched(manager_channel_map: &ManagerChannelMap) -> Result<String> {
+    let request = sgcp::Request {
+        resource: sgcp::Resource::Emg as i32,
+        task_code: "EXPORT".to_string(),
+        task_data: None,
+    };
+
+    match dispatch_task(request, manager_channel_map).await {
+        Ok(response) => {
+            info!("(Dispatched) Got EMG ADC Data JSON: {}", response);
+            Ok(response)
+        }
+        Err(e) => {
+            warn!("(Dispatched) Failed to dispatch EMG request: {}", e);
+            Err(anyhow!("Dispatch failed: {}", e))
+        }
+    }
+}
+
+
+/// Direct mode: call `Emg::read_adc()` directly
+pub async fn get_emg_json_direct() -> Result<String> {
+    let emg_data = Emg::read_adc();
+
+    match to_string(&emg_data) {
+        Ok(json) => {
+            info!("(Direct) EMG ADC Data JSON: {}", json);
+            Ok(json)
+        }
+        Err(e) => {
+            warn!("(Direct) Failed to serialize EMG data: {}", e);
+            Err(anyhow!("Serialization failed: {}", e))
+        }
+    }
 }

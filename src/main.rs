@@ -37,12 +37,14 @@ async fn main() {
     config::logger_init();
 
     // Initialize resource managers and their communication channels.
-    let manager_channel_map = managers::macros::init_resource_managers! {
+    let manager_channel_map: HashMap<String, Sender<ManagerChannelData>> = managers::macros::init_resource_managers! {
         gpm::sgcp::Resource::Bms => Manager::<Bms>::new(),
         gpm::sgcp::Resource::Emg => Manager::<Emg>::new(),
         gpm::sgcp::Resource::Maestro => Manager::<Maestro>::new(),
         gpm::sgcp::Resource::Fsr => Manager::<Fsr>::new()
     };
+
+    let exporter_map = manager_channel_map.clone(); 
 
     tokio::spawn(async {
         let mut exporter = exporters::prometheus::Exporter::new();
@@ -50,7 +52,7 @@ async fn main() {
     });
 
     tokio::spawn(async {
-        let exporter = exporters::emg::Exporter::new();
+        let exporter = exporters::emg::Exporter::new(exporter_map);
         exporter.init().await
     });
 
